@@ -13,7 +13,7 @@
   },
   "artifacts": [
     {
-      "uri": "ollama://ember-coreui:latest"
+      "uri": "ollama:ember-coreui:latest"
     }
   ],
   "model": {
