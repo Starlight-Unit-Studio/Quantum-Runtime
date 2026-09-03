@@ -122,6 +122,18 @@ Quantum CoreOS may provide optimized Runtime service profiles, GPU policy and lo
 - `docs/adr/0002-adoption-backend-first.md`
 - `docs/adr/0003-model-neutral-runtime.md`
 
-## Licensing status
+## License
 
-No project license has been selected in this foundation yet. A deliberate license decision is required before a public binary release.
+Quantum Runtime project-owned code is licensed under the **Starlight Unit Studios Quantum Runtime Community Source License 1.0**.
+
+- private and internal use is royalty-free
+- internal commercial use and Integrated Application Use are permitted
+- there is no user limit and no license telemetry requirement
+- distributed modifications must retain attribution, provide corresponding source code, and use the same license
+- Quantum Runtime itself may not be sold, white-labeled, or offered as a paid standalone general-purpose Runtime service
+- installation, integration, maintenance, consulting, support, and separate infrastructure charges remain permitted under the license conditions
+- third-party inference engines, models, model weights, datasets, and tools retain their own terms
+
+The legally controlling German text is in `LICENSE.de.md`. `LICENSE.md` is an English convenience translation. See also `LICENSE_HISTORY.md`, `NOTICE.md`, `COPYRIGHT.md`, `TRADEMARKS.md`, and `THIRD_PARTY_NOTICES.md`.
+
+This is a custom Source Available license and is not an OSI-approved open-source license.
