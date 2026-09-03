@@ -1,0 +1,23 @@
+{
+  "model": "ember-coreui:latest",
+  "stream": false,
+  "keep_alive": "15m",
+  "messages": [
+    {
+      "role": "system",
+      "content": "Reference system context"
+    },
+    {
+      "role": "user",
+      "content": "Compatibility probe"
+    }
+  ],
+  "options": {
+    "num_ctx": 32768,
+    "num_predict": 6500,
+    "temperature": 1.0,
+    "top_p": 0.95,
+    "top_k": 64
+  },
+  "think": true
+}
