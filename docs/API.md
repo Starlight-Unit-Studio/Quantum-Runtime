@@ -2,7 +2,7 @@
 
 Status: `v1alpha1`
 
-The current alpha exposes native service inspection endpoints and a constrained Ollama compatibility surface.
+Quantum Runtime exposes native service inspection and model-registry endpoints plus a constrained Ollama compatibility surface.
 
 ## Native endpoints
 
@@ -16,7 +16,7 @@ Example response:
 {
   "status": "alive",
   "service": "quantum-runtime",
-  "version": "0.1.0-alpha.1"
+  "version": "0.2.0-alpha.1"
 }
 ```
 
@@ -32,9 +32,96 @@ Returns Runtime build identity and configured backend type.
 
 Returns the implemented compatibility categories, streaming support and model-mutation policy.
 
+### `GET /v1/models`
+
+Returns the read-only Quantum Runtime model registry. Entries are sorted by canonical model identifier and expose summary metadata only.
+
+Example shape:
+
+```json
+{
+  "api_version": "v1alpha1",
+  "schema_version": "quantum.runtime/model-manifest/v1alpha1",
+  "count": 3,
+  "models": [
+    {
+      "id": "ember-coreui",
+      "display_name": "Ember CoreUI Model Profile",
+      "aliases": ["ember-coreui:latest"],
+      "backend": "ollama-adapter",
+      "capabilities": ["text", "thinking", "vision"],
+      "state": {
+        "install": "external",
+        "verification": "unverified",
+        "lifecycle": "active"
+      }
+    }
+  ]
+}
+```
+
+The builtin examples are contract fixtures and product-profile references. An `unverified` manifest does not assert that unresolved source, context, quantization or capability metadata has been cryptographically verified against model artifacts.
+
+### `GET /v1/models/{identifier}`
+
+Returns the complete manifest for a canonical identifier or registered alias. Aliases resolve to the same canonical manifest without creating duplicate model identities.
+
+Example:
+
+```text
+GET /v1/models/ember-coreui:latest
+```
+
+returns a payload containing canonical model id `ember-coreui` and the full `quantum.runtime/model-manifest/v1alpha1` object.
+
+Unknown identifiers fail with HTTP 404:
+
+```json
+{
+  "error": {
+    "code": "model_not_found",
+    "message": "The requested model is not present in the Quantum Runtime registry.",
+    "request_id": "..."
+  }
+}
+```
+
+The registry is read-only in `0.2.0-alpha.1`. Install, remove, load and unload operations are intentionally not implemented yet.
+
+## Model manifest contract
+
+The machine-readable JSON Schema is:
+
+```text
+schema/model-manifest-v1alpha1.schema.json
+```
+
+Builtin example manifests live under:
+
+```text
+internal/modelregistry/data/
+```
+
+The contract separates:
+
+- canonical runtime identity from application aliases
+- source identity and revision
+- backend type and artifact references
+- optional SHA-256 artifact integrity
+- architecture, parameter class, quantization and context metadata
+- declared text, vision, audio, embeddings, tools and thinking capabilities
+- Runtime compatibility bounds
+- optional persona-package references
+- install, verification and lifecycle state
+- provenance and external license references
+
+A manifest marked `verified` must use a resolved source revision and SHA-256 integrity for every artifact. Invalid identifiers, hashes, state combinations and Runtime version ranges fail closed in the Go validator.
+
+Persona references identify a separate package. Runtime manifests do not contain mutable chats, user memory, credentials or application-specific system prompts.
+
 ## Ollama compatibility endpoints
 
-Read and inference routes enabled in the foundation:
+Read and inference routes enabled in the current adoption backend:
 
 ```text
 POST   /api/chat
@@ -58,6 +145,8 @@ DELETE /api/delete
 
 Any unlisted `/api/*` path fails closed and is never forwarded.
 
+The Ollama mutation switch is a compatibility-proxy policy only. It does not implement Quantum Runtime's future managed-model lifecycle.
+
 ## Streaming
 
 Quantum Runtime forwards upstream streaming responses incrementally and flushes chunks to the client. It does not buffer a complete model answer before sending it.
@@ -66,7 +155,7 @@ Quantum Runtime forwards upstream streaming responses incrementally and flushes 
 
 The default listener is loopback-only and does not require a token.
 
-When `QUANTUM_RUNTIME_AUTH_TOKEN` is configured, protected endpoints require:
+When `QUANTUM_RUNTIME_AUTH_TOKEN` is configured, protected native and compatibility endpoints require:
 
 ```http
 Authorization: Bearer <token>
@@ -96,4 +185,4 @@ Upstream Ollama responses are preserved for compatibility after a request has be
 
 `v1alpha1` is intentionally not a stable 1.0 contract. Changes must be documented in `CHANGELOG.md`.
 
-CoreUI migration should initially use `/api/chat`. A later native chat contract and OpenAI-compatible adapter will be specified independently rather than guessed from the proxy implementation.
+CoreUI migration should initially continue to use `/api/chat`. A later native chat contract and OpenAI-compatible adapter will be specified independently rather than guessed from the proxy implementation.
