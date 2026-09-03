@@ -1,0 +1,102 @@
+name: Quantum Runtime Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - VERSION
+      - CITATION.cff
+      - .github/workflows/release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: quantum-runtime-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Read and validate version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid VERSION: $version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          if [[ "$version" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify source tree
+        run: ./scripts/verify.sh
+
+      - name: Build release archives
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for arch in amd64 arm64; do
+            work="$(mktemp -d)"
+            CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath -ldflags='-s -w' -o "$work/quantum-runtime" ./cmd/quantum-runtime
+            cp README.md LICENSE.de.md LICENSE.md LICENSE_HISTORY.md NOTICE.md COPYRIGHT.md TRADEMARKS.md THIRD_PARTY_NOTICES.md "$work/"
+            tar -C "$work" -czf "dist/quantum-runtime_${VERSION}_linux_${arch}.tar.gz" .
+            rm -rf "$work"
+          done
+          (
+            cd dist
+            sha256sum quantum-runtime_*.tar.gz > SHA256SUMS
+          )
+
+      - name: Create GitHub release if absent
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists. Nothing to do."
+            exit 0
+          fi
+
+          args=(
+            "$TAG"
+            dist/quantum-runtime_*.tar.gz
+            dist/SHA256SUMS
+            --target "$GITHUB_SHA"
+            --title "Quantum Runtime $VERSION"
+            --generate-notes
+          )
+
+          if [[ "$PRERELEASE" == "true" ]]; then
+            args+=(--prerelease)
+          else
+            args+=(--latest)
+          fi
+
+          gh release create "${args[@]}"
