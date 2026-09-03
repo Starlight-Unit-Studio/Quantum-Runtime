@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"sort"
 	"strings"
@@ -82,8 +83,12 @@ func Builtin() (*Registry, error) {
 		if err := decoder.Decode(&manifest); err != nil {
 			return nil, fmt.Errorf("decode builtin manifest %s: %w", entry.Name(), err)
 		}
-		if decoder.More() {
-			return nil, fmt.Errorf("builtin manifest %s contains trailing JSON values", entry.Name())
+		var trailing any
+		if err := decoder.Decode(&trailing); err != io.EOF {
+			if err == nil {
+				return nil, fmt.Errorf("builtin manifest %s contains trailing JSON values", entry.Name())
+			}
+			return nil, fmt.Errorf("decode trailing data in builtin manifest %s: %w", entry.Name(), err)
 		}
 		manifests = append(manifests, manifest)
 	}
