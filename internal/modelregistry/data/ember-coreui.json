@@ -1,0 +1,48 @@
+{
+  "schema_version": "quantum.runtime/model-manifest/v1alpha1",
+  "id": "ember-coreui",
+  "display_name": "Ember CoreUI Model Profile",
+  "aliases": ["ember-coreui:latest"],
+  "source": {
+    "provider": "ollama",
+    "reference": "ember-coreui:latest",
+    "revision": "unresolved"
+  },
+  "backend": {
+    "type": "ollama-adapter"
+  },
+  "artifacts": [
+    {
+      "uri": "ollama://ember-coreui:latest"
+    }
+  ],
+  "model": {
+    "architecture": "gemma4",
+    "parameter_class": "profile_dependent",
+    "quantization": "runtime_selected",
+    "context_window": 8192
+  },
+  "capabilities": {
+    "text": true,
+    "vision": true,
+    "audio": false,
+    "embeddings": false,
+    "tools": false,
+    "thinking": true
+  },
+  "compatibility": {
+    "min_runtime_version": "0.2.0-alpha.1"
+  },
+  "persona": {
+    "package": "ember-coreui-persona",
+    "version": "0.1.0"
+  },
+  "state": {
+    "install": "external",
+    "verification": "unverified",
+    "lifecycle": "active"
+  },
+  "provenance": {
+    "publisher": "Starlight Unit Studios"
+  }
+}
