@@ -1,0 +1,44 @@
+{
+  "schema_version": "quantum.runtime/model-manifest/v1alpha1",
+  "id": "generic-text-model",
+  "display_name": "Generic Text Model Example",
+  "aliases": ["example/generic-text-model"],
+  "source": {
+    "provider": "example",
+    "reference": "example/generic-text-model",
+    "revision": "unresolved"
+  },
+  "backend": {
+    "type": "external"
+  },
+  "artifacts": [
+    {
+      "uri": "profile://examples/generic-text-model"
+    }
+  ],
+  "model": {
+    "architecture": "generic",
+    "parameter_class": "unspecified",
+    "quantization": "unspecified",
+    "context_window": 8192
+  },
+  "capabilities": {
+    "text": true,
+    "vision": false,
+    "audio": false,
+    "embeddings": false,
+    "tools": false,
+    "thinking": false
+  },
+  "compatibility": {
+    "min_runtime_version": "0.2.0-alpha.1"
+  },
+  "state": {
+    "install": "available",
+    "verification": "unverified",
+    "lifecycle": "active"
+  },
+  "provenance": {
+    "publisher": "Starlight Unit Studios"
+  }
+}

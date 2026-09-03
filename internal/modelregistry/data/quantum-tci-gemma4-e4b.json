@@ -1,0 +1,48 @@
+{
+  "schema_version": "quantum.runtime/model-manifest/v1alpha1",
+  "id": "quantum-tci-gemma4-e4b",
+  "display_name": "Quantum CoreOS TCI Gemma 4 e4b Profile",
+  "aliases": ["quantum-tci:e4b"],
+  "source": {
+    "provider": "profile",
+    "reference": "gemma4/e4b",
+    "revision": "unresolved"
+  },
+  "backend": {
+    "type": "external"
+  },
+  "artifacts": [
+    {
+      "uri": "profile://gemma4/e4b"
+    }
+  ],
+  "model": {
+    "architecture": "gemma4",
+    "parameter_class": "e4b",
+    "quantization": "profile_dependent",
+    "context_window": 8192
+  },
+  "capabilities": {
+    "text": true,
+    "vision": true,
+    "audio": false,
+    "embeddings": false,
+    "tools": false,
+    "thinking": true
+  },
+  "compatibility": {
+    "min_runtime_version": "0.2.0-alpha.1"
+  },
+  "persona": {
+    "package": "quantum-tci-standard",
+    "version": "0.1.0"
+  },
+  "state": {
+    "install": "available",
+    "verification": "unverified",
+    "lifecycle": "active"
+  },
+  "provenance": {
+    "publisher": "Starlight Unit Studios"
+  }
+}
