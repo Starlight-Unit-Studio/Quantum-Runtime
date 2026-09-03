@@ -83,7 +83,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/v1/capabilities", s.handleCapabilities)
 	mux.HandleFunc("/api/", s.handleCompatibility)
 	mux.HandleFunc("/", s.handleNotFound)
-	return s.withRequestContext(s.withAccessLog(mux))
+	return s.withRequestContext(s.withAccessLog(s.withRegistryRoutes(mux)))
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
