@@ -1,5 +1,7 @@
 # Quantum Runtime
 
+[![DOI](https://zenodo.org/badge/1356057370.svg)](https://doi.org/10.5281/zenodo.22287448)
+
 Quantum Runtime is the independent AI runtime and model-service project of Starlight Unit Studios.
 
 Current version: `0.2.0-alpha.2`
