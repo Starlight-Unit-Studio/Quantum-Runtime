@@ -1,0 +1,25 @@
+# Build output
+/bin/
+/dist/
+/quantum-runtime
+*.test
+*.out
+coverage.*
+
+# Local configuration and secrets
+.env
+.env.*
+!*.env.example
+/config/*.local
+
+# Runtime data
+/var/
+/runtime/
+/models/
+*.log
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
