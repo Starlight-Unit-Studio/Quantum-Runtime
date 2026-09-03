@@ -64,9 +64,9 @@ func (s *Server) handleModelInspect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.writeJSON(w, http.StatusOK, map[string]any{
-		"api_version":         "v1alpha1",
-		"schema_version":      modelmanifest.SchemaVersion,
+		"api_version":          "v1alpha1",
+		"schema_version":       modelmanifest.SchemaVersion,
 		"requested_identifier": identifier,
-		"model":               manifest,
+		"model":                manifest,
 	})
 }
