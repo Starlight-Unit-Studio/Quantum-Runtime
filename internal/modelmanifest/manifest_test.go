@@ -54,7 +54,7 @@ func TestManifestValidationFailsClosed(t *testing.T) {
 		{
 			name:     "invalid semantic version",
 			mutate:   func(m *Manifest) { m.Compatibility.MinRuntimeVersion = "02.0.0" },
-			contains: "semantic version",
+			contains: "leading-zero version component",
 		},
 	}
 
