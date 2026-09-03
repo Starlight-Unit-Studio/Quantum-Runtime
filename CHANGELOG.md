@@ -18,6 +18,13 @@ Initial Quantum Runtime foundation.
 - tests, race checks, vet, formatting verification and CI
 - architecture, API, security, roadmap and decision records
 
+### Licensing
+
+- adopted the Starlight Unit Studios Quantum Runtime Community Source License 1.0
+- added controlling German and translated English license texts
+- added license history, copyright, notice, trademark and third-party notice files
+- added CI verification that required legal files are present and internally consistent
+
 ### Not yet implemented
 
 - independent native inference
