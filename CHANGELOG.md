@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.2.0-alpha.2
+
+First non-destructive Linux service packaging and optional Ember CoreUI adoption profile.
+
+### Added
+
+- dedicated `quantum-runtime-installer` command with `preflight`, `status`, `install`, `repair`, `uninstall` and `coreui-profile` operations
+- dedicated `quantum-runtime` system user and group creation
+- hardened systemd service profile
+- protected `/etc/quantum-runtime` environment and ownership-marker layout
+- ownership classification using `managed`, `external` and `disabled`
+- read-only detection of the existing local Ollama adoption backend
+- atomic Runtime binary/unit replacement
+- preservation of pre-existing Runtime configuration during updates
+- activation health and readiness gates
+- rollback of Runtime binary, unit, config and ownership marker on failed activation
+- idempotent install and uninstall behavior
+- uninstall protection for externally owned Runtime files, Ollama and model data
+- explicit CoreUI profiles for Quantum Runtime and direct Ollama modes
+- representative CoreUI chat end-to-end compatibility test
+- systemd syntax verification
+- version-consistency checks between `VERSION`, Runtime and installer binaries
+- installer binary and deployment/profile files in Linux release archives
+- release-time build metadata stamping for Runtime and installer binaries
+
+### Safety boundaries
+
+- the installer never pulls, updates, restarts, renames or deletes Ollama
+- the installer never pulls, replaces, renames or deletes Ollama models
+- no CoreUI database, account, session, upload, memory or secret is modified
+- CoreUI adoption remains an explicit operator choice and can be reversed without rebuilding CoreUI
+- existing Runtime files without the installer ownership marker are treated as `external` and are never overwritten or removed
+- pre-existing Runtime configuration is never purged by uninstall
+- remote Runtime exposure is not enabled automatically
+
 ## 0.2.0-alpha.1
 
 First versioned Quantum Runtime model identity and registry contract.

@@ -20,6 +20,7 @@ race:
 build:
 	mkdir -p bin
 	go build -trimpath -o bin/quantum-runtime ./cmd/quantum-runtime
+	go build -trimpath -o bin/quantum-runtime-installer ./cmd/quantum-runtime-installer
 
 verify:
 	./scripts/verify.sh
