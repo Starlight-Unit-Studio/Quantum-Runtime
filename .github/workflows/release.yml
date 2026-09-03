@@ -1,12 +1,19 @@
 name: Quantum Runtime Release
 
 on:
+  pull_request:
+    paths:
+      - VERSION
+      - CITATION.cff
+      - docs/RELEASING.md
+      - .github/workflows/release.yml
   push:
     branches:
       - main
     paths:
       - VERSION
       - CITATION.cff
+      - docs/RELEASING.md
       - .github/workflows/release.yml
   workflow_dispatch:
 
@@ -14,7 +21,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: quantum-runtime-release
+  group: quantum-runtime-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -71,6 +78,7 @@ jobs:
           )
 
       - name: Create GitHub release if absent
+        if: github.event_name != 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
