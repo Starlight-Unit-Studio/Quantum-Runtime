@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use Quantum Runtime, please cite the archived software release."
+title: "Quantum Runtime"
+type: software
+authors:
+  - family-names: "Schildgen"
+    given-names: "Patrick"
+    affiliation: "Starlight Unit Studios"
+repository-code: "https://github.com/Starlight-Unit-Studio/Quantum-Runtime"
+url: "https://github.com/Starlight-Unit-Studio/Quantum-Runtime"
+abstract: >-
+  Quantum Runtime is the independent local AI runtime and model-service layer
+  developed by Starlight Unit Studios. It provides the stable application-facing
+  runtime boundary used by Ember CoreUI, other Starlight applications and later
+  Quantum CoreOS.
+keywords:
+  - artificial intelligence
+  - local inference
+  - model runtime
+  - Starlight Unit Studios
