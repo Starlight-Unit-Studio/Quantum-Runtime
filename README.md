@@ -118,6 +118,7 @@ Quantum CoreOS may provide optimized Runtime service profiles, GPU policy and lo
 - `docs/API.md`
 - `docs/ROADMAP.md`
 - `docs/SECURITY.md`
+- `docs/LICENSE-POLICY.md`
 - `docs/adr/0001-service-language.md`
 - `docs/adr/0002-adoption-backend-first.md`
 - `docs/adr/0003-model-neutral-runtime.md`
