@@ -2,13 +2,16 @@
 
 Quantum Runtime is the independent AI runtime and model-service project of Starlight Unit Studios.
 
-Current version: `0.1.0-alpha.1`
+Current version: `0.2.0-alpha.1`
 
 ## Current alpha scope
 
-This first foundation establishes the stable service boundary that Ember CoreUI, STΛRLIGHT UNIT The Game and later Quantum CoreOS can target.
+Quantum Runtime now owns two application-facing contracts:
 
-The alpha currently runs in **Ollama adoption mode**:
+1. the inference service boundary used by Ember CoreUI, STΛRLIGHT UNIT The Game and later Quantum CoreOS
+2. the versioned model identity and read-only registry contract used to describe models without coupling applications to one backend
+
+Inference still runs in **Ollama adoption mode**:
 
 ```text
 Ember CoreUI / Game / client
@@ -20,11 +23,9 @@ Ember CoreUI / Game / client
        existing Ollama :11434
 ```
 
-Quantum Runtime already owns the public endpoint, request policy, authentication boundary, health reporting, timeouts and compatibility allowlist. It does not yet execute model inference independently. A pluggable native inference backend is a later phase.
+Quantum Runtime owns the public endpoint, request policy, authentication boundary, health reporting, timeouts, compatibility allowlist and model-manifest contract. It does not yet execute model inference independently. A pluggable native inference backend is a later phase.
 
-This staged design lets current applications adopt the Quantum Runtime contract without waiting for the final inference engine and without coupling Quantum Runtime to Quantum CoreOS.
-
-## Foundation capabilities
+## Current capabilities
 
 - standalone Go service with no third-party Go dependencies
 - loopback-only default on `127.0.0.1:11450`
@@ -35,8 +36,13 @@ This staged design lets current applications adopt the Quantum Runtime contract 
 - request-size and upstream-timeout policy
 - liveness, readiness, version and capability endpoints
 - request IDs and structured logs without prompt bodies
+- versioned `quantum.runtime/model-manifest/v1alpha1` contract
+- fail-closed Go validation for model identity, integrity, compatibility and state
+- read-only `/v1/models` registry API with canonical ID and alias lookup
+- generic, Ember CoreUI and future Quantum CoreOS TCI manifest examples
 - graceful shutdown
 - unit, race, vet, formatting and build verification
+- automated Linux amd64/arm64 GitHub releases with SHA-256 sums and Zenodo archival support
 
 ## Run locally
 
@@ -46,12 +52,14 @@ An existing Ollama service may remain on its default local endpoint.
 go run ./cmd/quantum-runtime
 ```
 
-Check the service:
+Check the service and registry:
 
 ```bash
 curl -s http://127.0.0.1:11450/healthz
 curl -s http://127.0.0.1:11450/readyz
 curl -s http://127.0.0.1:11450/v1/runtime
+curl -s http://127.0.0.1:11450/v1/models
+curl -s http://127.0.0.1:11450/v1/models/ember-coreui:latest
 ```
 
 Run all verification:
@@ -59,6 +67,29 @@ Run all verification:
 ```bash
 ./scripts/verify.sh
 ```
+
+## Model registry
+
+The machine-readable schema lives at:
+
+```text
+schema/model-manifest-v1alpha1.schema.json
+```
+
+Builtin contract/profile examples live at:
+
+```text
+internal/modelregistry/data/
+├── generic-model.json
+├── ember-coreui.json
+└── quantum-tci-gemma4-e4b.json
+```
+
+The manifest deliberately separates the canonical model identity from aliases, source revision, backend, artifacts, SHA-256 integrity, capabilities, compatibility, persona package, lifecycle state and provenance.
+
+Builtin examples with `verification: unverified` are contract fixtures and product-profile references. They are not cryptographic claims that unresolved model artifact metadata, quantization or context characteristics have already been verified.
+
+A persona reference is metadata only. Runtime does not embed mutable chats, user memories, credentials or application system prompts in the model manifest.
 
 ## Ember CoreUI adoption
 
@@ -68,15 +99,15 @@ The current Ember CoreUI server-side Ollama call can be routed through Quantum R
 COREUI_OLLAMA_URL=http://127.0.0.1:11450/api/chat
 ```
 
-During this first alpha, Ollama still performs the actual inference behind Quantum Runtime. Later backends must preserve the same application-facing contract.
+Ollama still performs actual inference behind Quantum Runtime in this phase. Later backends must preserve the same application-facing contract.
 
 Ember CoreUI remains an independent Repack and may continue to use Ollama directly when Quantum Runtime is not selected.
 
 ## Model policy
 
-Quantum Runtime is model-neutral. It must not force one model on every consumer.
+Quantum Runtime is model-neutral. It does not force one model on every consumer.
 
-The future Quantum CoreOS TCI profile targets **Gemma 4 e4b** with its own personality package and operating-system integration. That target belongs to the CoreOS TCI profile, not to the generic Runtime default.
+The future Quantum CoreOS TCI profile targets **Gemma 4 e4b** and references its own TCI persona package. That target belongs to the CoreOS TCI profile, not to the generic Runtime default.
 
 CoreUI, the Game and other clients keep their own model identity, persona package, context and policy.
 
@@ -101,7 +132,7 @@ Quantum Runtime is developed and released independently.
 
 ```text
 Quantum Runtime
-    model lifecycle, inference APIs, streaming, backend adapters
+    model identity, lifecycle, inference APIs, streaming, backend adapters
 
 Quantum Control
     server, hosting, service, database, backup and update management
@@ -110,7 +141,7 @@ Quantum CoreOS
     final operating-system integration of released Runtime and Control modules
 ```
 
-Quantum CoreOS may provide optimized Runtime service profiles, GPU policy and local IPC later, but it must consume the upstream Quantum Runtime project rather than maintaining a private fork.
+Quantum CoreOS may provide optimized Runtime service profiles, GPU policy and local IPC later, but it consumes the upstream Quantum Runtime project rather than maintaining a private fork.
 
 ## Documentation
 
@@ -118,6 +149,7 @@ Quantum CoreOS may provide optimized Runtime service profiles, GPU policy and lo
 - `docs/API.md`
 - `docs/ROADMAP.md`
 - `docs/SECURITY.md`
+- `docs/RELEASING.md`
 - `docs/LICENSE-POLICY.md`
 - `docs/adr/0001-service-language.md`
 - `docs/adr/0002-adoption-backend-first.md`
