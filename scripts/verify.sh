@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eu
 
+sh scripts/verify-legal.sh
+
 if [ -n "$(gofmt -l .)" ]; then
   echo "Go files require gofmt:" >&2
   gofmt -l . >&2
