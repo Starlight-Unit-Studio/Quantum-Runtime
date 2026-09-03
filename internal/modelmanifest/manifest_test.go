@@ -14,23 +14,23 @@ func TestValidManifest(t *testing.T) {
 
 func TestManifestValidationFailsClosed(t *testing.T) {
 	tests := []struct {
-		name    string
-		mutate  func(*Manifest)
+		name     string
+		mutate   func(*Manifest)
 		contains string
 	}{
 		{
-			name: "invalid canonical id",
-			mutate: func(m *Manifest) { m.ID = "Bad Model" },
+			name:     "invalid canonical id",
+			mutate:   func(m *Manifest) { m.ID = "Bad Model" },
 			contains: "canonical model identifier",
 		},
 		{
-			name: "invalid artifact hash",
-			mutate: func(m *Manifest) { m.Artifacts[0].SHA256 = "sha256:not-a-digest" },
+			name:     "invalid artifact hash",
+			mutate:   func(m *Manifest) { m.Artifacts[0].SHA256 = "sha256:not-a-digest" },
 			contains: "invalid sha256",
 		},
 		{
-			name: "no capabilities",
-			mutate: func(m *Manifest) { m.Capabilities = Capabilities{} },
+			name:     "no capabilities",
+			mutate:   func(m *Manifest) { m.Capabilities = Capabilities{} },
 			contains: "at least one capability",
 		},
 		{
@@ -42,18 +42,18 @@ func TestManifestValidationFailsClosed(t *testing.T) {
 			contains: "must not be lower",
 		},
 		{
-			name: "failed verification cannot remain active",
-			mutate: func(m *Manifest) { m.State.Verification = "failed" },
+			name:     "failed verification cannot remain active",
+			mutate:   func(m *Manifest) { m.State.Verification = "failed" },
 			contains: "cannot be active",
 		},
 		{
-			name: "invalid persona digest",
-			mutate: func(m *Manifest) { m.Persona = &PersonaRef{Package: "persona", Version: "1.0.0", SHA256: "bad"} },
+			name:     "invalid persona digest",
+			mutate:   func(m *Manifest) { m.Persona = &PersonaRef{Package: "persona", Version: "1.0.0", SHA256: "bad"} },
 			contains: "persona.sha256",
 		},
 		{
-			name: "invalid semantic version",
-			mutate: func(m *Manifest) { m.Compatibility.MinRuntimeVersion = "02.0.0" },
+			name:     "invalid semantic version",
+			mutate:   func(m *Manifest) { m.Compatibility.MinRuntimeVersion = "02.0.0" },
 			contains: "semantic version",
 		},
 	}
@@ -116,7 +116,7 @@ func validManifest() Manifest {
 			Reference: "test/model",
 			Revision:  "unresolved",
 		},
-		Backend: Backend{Type: "external"},
+		Backend:   Backend{Type: "external"},
 		Artifacts: []Artifact{{URI: "profile://test/model"}},
 		Model: Model{
 			Architecture:   "test",
@@ -124,7 +124,7 @@ func validManifest() Manifest {
 			Quantization:   "none",
 			ContextWindow:  8192,
 		},
-		Capabilities: Capabilities{Text: true},
+		Capabilities:  Capabilities{Text: true},
 		Compatibility: Compatibility{MinRuntimeVersion: "0.2.0-alpha.1"},
 		State: State{
 			Install:      "available",
