@@ -4,7 +4,7 @@
 
 Quantum Runtime is the independent AI runtime and model-service project of Starlight Unit Studios.
 
-Current version: `0.3.0-alpha.3`
+Current version: `0.3.0-alpha.4`
 
 ## Current alpha scope
 
@@ -14,6 +14,7 @@ Quantum Runtime 0.3 adds the first model- and engine-neutral backend capability 
 2. the versioned model identity and read-only registry contract
 3. a non-destructive Linux service package that can be installed beside an existing Ollama service
 4. host-resource discovery, bounded calibration and a CPU-first placement contract for RAM/VRAM/NVMe candidates
+5. application deployment-profile admission, guest/process CPU-limit discovery and repeatable real-model benchmark planning
 
 Quantum Runtime now has two local execution paths. Ollama remains the default adoption/fallback mode, while a direct llama.cpp path can talk to `llama-server` without an Ollama daemon in the inference request path:
 
@@ -43,9 +44,13 @@ The initial llama.cpp adapter deliberately uses the external `llama-server` proc
 - Ollama chat/generate/embed compatibility translation to llama.cpp OpenAI-style endpoints
 - fail-closed handling for llama.cpp features not yet normalized: vision, tools, reasoning control and structured output
 - Linux host discovery for CPU topology/features, NUMA, RAM/huge pages, block/NVMe devices and visible accelerator/VRAM metadata
+- guest/process CPU-limit discovery from affinity, cgroup cpusets and CPU quota with virtualization evidence
 - explicit bounded memory-bandwidth/worker-count calibration rather than automatic startup benchmarking
 - versioned CPU-first placement plans that prefer RAM/CPU when the hot set fits and only consider hybrid acceleration after CPU capacity fails
 - explicit NVMe cold-tier placement; hot execution state is never silently spilled to disk
+- machine-readable application deployment profiles separate from generic Runtime minimums
+- E.M.B.E.R. production admission with explicit `admitted`, `rejected` and `needs_operator_evidence` decisions
+- repeatable real-model CPU benchmark-plan generation without claiming unmeasured throughput
 - streamed forwarding/translation, cancellation, body limits and backend timeouts
 - loopback-only default on `127.0.0.1:11450`
 - bearer-token requirement for any non-loopback bind
@@ -78,6 +83,7 @@ curl -s http://127.0.0.1:11450/v1/backends
 curl -s http://127.0.0.1:11450/v1/model-policies
 curl -s http://127.0.0.1:11450/v1/upstreams
 curl -s http://127.0.0.1:11450/v1/host
+curl -s http://127.0.0.1:11450/v1/deployment-profiles
 curl -s -X POST http://127.0.0.1:11450/v1/host/calibrate
 ```
 
@@ -116,9 +122,9 @@ The machine-readable schema lives at:
 schema/model-manifest-v1alpha1.schema.json
 ```
 
-Builtin contract/profile examples live under `internal/modelregistry/data/` for a generic model, Ember CoreUI and the future Quantum CoreOS Gemma 4 e4b TCI profile.
+Builtin contract/profile examples live under `internal/modelregistry/data/` for a generic model, Ember CoreUI, Gemma 4 26B A4B MoE reference and the future Quantum CoreOS Gemma 4 e4b TCI profile.
 
-The manifest separates canonical model identity from aliases, source revision, backend, artifacts, SHA-256 integrity, capabilities, compatibility, persona package, lifecycle state and provenance. In 0.3, artifacts may additionally declare their own backend/format/role, allowing one canonical identity to acquire multiple backend artifacts without changing the client-facing model ID. Generic architecture metadata now distinguishes dense, MoE and unknown profiles and can carry context-policy and expert-topology data without exposing family-specific fields in the public API. An `unverified` example is a contract/profile reference, not a cryptographic claim about unresolved model artifacts.
+The manifest separates canonical model identity from aliases, source revision, backend, artifacts, SHA-256 integrity, capabilities, compatibility, persona package, lifecycle state and provenance. In 0.3, artifacts may additionally declare their own backend/format/role, allowing one canonical identity to acquire multiple backend artifacts without changing the client-facing model ID. Generic architecture metadata distinguishes dense, MoE and unknown profiles and can carry context-policy and expert-topology data without exposing family-specific fields in the public API. An `unverified` example is a contract/profile reference, not a cryptographic claim about unresolved model artifacts.
 
 ## Direct llama.cpp backend
 
@@ -141,11 +147,51 @@ If the llama.cpp server uses `--api-key`, set `QUANTUM_RUNTIME_LLAMA_CPP_API_KEY
 
 ## CPU-first host placement
 
-`0.3.0-alpha.3` adds the first generic hardware/resource contract. `GET /v1/host` reports OS-visible CPU, NUMA, RAM, storage and accelerator metadata. `POST /v1/host/calibrate` runs an explicit bounded synthetic memory/worker sweep. `POST /v1/placement` creates a pre-activation capacity plan for model weights, MoE experts, caches, projectors, workspace and an optional explicit cold NVMe tier.
+`0.3.0-alpha.3` added the first generic hardware/resource contract. `GET /v1/host` reports OS-visible CPU, NUMA, RAM, storage and accelerator metadata. `POST /v1/host/calibrate` runs an explicit bounded synthetic memory/worker sweep. `POST /v1/placement` creates a pre-activation capacity plan for model weights, MoE experts, caches, projectors, workspace and an optional explicit cold NVMe tier.
+
+`0.3.0-alpha.4` adds a separate guest/process limit view. CPU affinity and cgroup cpusets define the usable guest/process CPU set; cgroup CPU quota is reported independently. Virtualization evidence is surfaced so a physical host model such as a 96-core EPYC 9645 cannot silently become a 96-core Runtime allocation when a KVM guest was allocated fewer cores.
 
 CPU/RAM remains the baseline. A visible GPU does not automatically win: if the hot working set fits usable RAM, the first planner returns `cpu_only`. Hybrid placement is only considered after CPU-only capacity fails and acceleration was explicitly allowed. NVMe is never used as an implicit escape hatch for hot state.
 
-This is a truthful capacity/host foundation, not yet a claim of measured model throughput. Real backend/model prefill/decode calibration, NUMA affinity, thread pinning, GGUF size estimation and backend activation from placement plans remain later Runtime 0.3 slices. See `docs/HARDWARE-PLACEMENT.md`.
+## E.M.B.E.R. production admission
+
+`ember-production` is an **application profile**, not a generic Runtime minimum. The current profile requires 64 GiB memory, ECC, at least eight physical cores and an MoE model. DDR5 is preferred. A GPU is optional. The historical ~2.6 GHz/core figure remains advisory and is never a hard admission cutoff.
+
+Properties that ordinary guest userspace cannot prove reliably remain `unknown`. Operator evidence can be supplied explicitly, for example on the current KVM deployment:
+
+```bash
+curl -s -X POST http://127.0.0.1:11450/v1/admission \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "profile":"ember-production",
+    "model":"gemma4:26b-a4b-reference",
+    "operator_evidence":{
+      "ecc_verified":true,
+      "memory_class":"ddr5",
+      "dedicated_physical_cores":20,
+      "core_budget":16
+    }
+  }'
+```
+
+A dense model fails the MoE production requirement instead of being silently substituted while preserving the E.M.B.E.R. profile identity.
+
+## Real-model CPU benchmark planning
+
+`POST /v1/benchmark-plan` creates the worker-count matrix for a canonical model without running or inventing benchmark results. Example for a 20-core guest where four cores remain reserved for website/game/system workload:
+
+```bash
+curl -s -X POST http://127.0.0.1:11450/v1/benchmark-plan \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "model":"gemma4:26b-a4b-reference",
+    "reserve_system_cores":4,
+    "minimum_workers":8,
+    "include_full_host_comparison":true
+  }'
+```
+
+On a 20-core effective guest allocation this yields 8/12/16 production candidates and a 20-core full-host comparison. Prefill and decode measurements still have to be collected separately for the exact backend/model/quantization/context tuple before Runtime can prefer one candidate.
 
 ## Ember CoreUI adoption
 
@@ -202,7 +248,7 @@ The process rejects a network-wide bind when no bearer token is configured.
 ```text
 Quantum Runtime
     model identity, lifecycle, inference APIs, streaming, backend adapters,
-    host discovery, calibration and placement policy
+    host discovery, calibration, placement and application-profile admission
 
 Quantum Control
     server, hosting, service, database, backup and update management
@@ -218,6 +264,7 @@ Quantum CoreOS consumes released Quantum Runtime packages rather than maintainin
 - `docs/ARCHITECTURE.md`
 - `docs/API.md`
 - `docs/HARDWARE-PLACEMENT.md`
+- `docs/EMBER-DEPLOYMENT-HISTORY.md`
 - `docs/INSTALLATION.md`
 - `docs/ROADMAP.md`
 - `docs/SECURITY.md`
