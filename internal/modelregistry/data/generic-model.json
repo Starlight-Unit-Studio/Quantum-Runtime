@@ -2,7 +2,9 @@
   "schema_version": "quantum.runtime/model-manifest/v1alpha1",
   "id": "generic-text-model",
   "display_name": "Generic Text Model Example",
-  "aliases": ["example/generic-text-model"],
+  "aliases": [
+    "example/generic-text-model"
+  ],
   "source": {
     "provider": "example",
     "reference": "example/generic-text-model",
@@ -20,7 +22,8 @@
     "architecture": "generic",
     "parameter_class": "unspecified",
     "quantization": "unspecified",
-    "context_window": 8192
+    "context_window": 8192,
+    "architecture_class": "unknown"
   },
   "capabilities": {
     "text": true,

@@ -4,11 +4,11 @@
 
 Quantum Runtime is the independent AI runtime and model-service project of Starlight Unit Studios.
 
-Current version: `0.2.0-alpha.2`
+Current version: `0.3.0-alpha.1`
 
 ## Current alpha scope
 
-Quantum Runtime now owns three reusable boundaries:
+Quantum Runtime 0.3 adds the first model- and engine-neutral backend capability foundation while retaining the non-destructive Ollama adoption path. It now owns these reusable boundaries:
 
 1. the inference service endpoint used by Ember CoreUI, STΛRLIGHT UNIT The Game and later Quantum CoreOS
 2. the versioned model identity and read-only registry contract
@@ -32,6 +32,10 @@ Quantum Runtime owns the application-facing endpoint, request policy, authentica
 
 - standalone Go Runtime service with no third-party Go dependencies
 - versioned `quantum.runtime/model-manifest/v1alpha1` contract and read-only registry
+- versioned `quantum.runtime/backend/v1alpha1` capability contract with explicit supported/unsupported/conditional/unknown states
+- deterministic capability router that preserves canonical model identity and fails closed on unsupported requirements
+- machine-readable model/backend policy for the validated Gemma 4 + Ollama minimal profile
+- machine-readable upstream ledger where unpinned observations cannot become latest-known-good production pins
 - Ollama-compatible chat, generation, embedding and model-read routes
 - streamed forwarding, cancellation, body limits and backend timeouts
 - loopback-only default on `127.0.0.1:11450`
@@ -61,6 +65,9 @@ curl -s http://127.0.0.1:11450/healthz
 curl -s http://127.0.0.1:11450/readyz
 curl -s http://127.0.0.1:11450/v1/runtime
 curl -s http://127.0.0.1:11450/v1/models
+curl -s http://127.0.0.1:11450/v1/backends
+curl -s http://127.0.0.1:11450/v1/model-policies
+curl -s http://127.0.0.1:11450/v1/upstreams
 ```
 
 Run all verification:
@@ -100,7 +107,7 @@ schema/model-manifest-v1alpha1.schema.json
 
 Builtin contract/profile examples live under `internal/modelregistry/data/` for a generic model, Ember CoreUI and the future Quantum CoreOS Gemma 4 e4b TCI profile.
 
-The manifest separates canonical model identity from aliases, source revision, backend, artifacts, SHA-256 integrity, capabilities, compatibility, persona package, lifecycle state and provenance. An `unverified` example is a contract/profile reference, not a cryptographic claim about unresolved model artifacts.
+The manifest separates canonical model identity from aliases, source revision, backend, artifacts, SHA-256 integrity, capabilities, compatibility, persona package, lifecycle state and provenance. In 0.3, artifacts may additionally declare their own backend/format/role, allowing one canonical identity to acquire multiple backend artifacts without changing the client-facing model ID. Generic architecture metadata now distinguishes dense, MoE and unknown profiles and can carry context-policy and expert-topology data without exposing family-specific fields in the public API. An `unverified` example is a contract/profile reference, not a cryptographic claim about unresolved model artifacts.
 
 ## Ember CoreUI adoption
 

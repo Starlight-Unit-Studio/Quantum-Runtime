@@ -14,13 +14,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/backendcontract"
+	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/backendrouter"
 	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/config"
+	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/modelpolicy"
 	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/ollama"
+	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/upstreamledger"
 )
 
 type Upstream interface {
-	Do(context.Context, *http.Request) (*http.Response, error)
-	Ready(context.Context) error
+	backendcontract.Backend
 }
 
 type BuildInfo struct {
@@ -81,6 +84,10 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/readyz", s.handleReady)
 	mux.HandleFunc("/v1/runtime", s.handleRuntime)
 	mux.HandleFunc("/v1/capabilities", s.handleCapabilities)
+	mux.HandleFunc("/v1/backends", s.handleBackends)
+	mux.HandleFunc("/v1/route", s.handleRoute)
+	mux.HandleFunc("/v1/model-policies", s.handleModelPolicies)
+	mux.HandleFunc("/v1/upstreams", s.handleUpstreams)
 	mux.HandleFunc("/api/", s.handleCompatibility)
 	mux.HandleFunc("/", s.handleNotFound)
 	return s.withRequestContext(s.withAccessLog(s.withRegistryRoutes(mux)))
@@ -115,9 +122,10 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusServiceUnavailable, "upstream_unavailable", "The configured inference backend is not ready.")
 		return
 	}
+	descriptor := s.upstream.Descriptor()
 	s.writeJSON(w, http.StatusOK, map[string]any{
 		"status":  "ready",
-		"backend": "ollama-adapter",
+		"backend": descriptor.Kind,
 	})
 }
 
@@ -130,16 +138,20 @@ func (s *Server) handleRuntime(w http.ResponseWriter, r *http.Request) {
 		s.writeUnauthorized(w)
 		return
 	}
+	backend := any(nil)
+	if s.upstream != nil {
+		descriptor := s.upstream.Descriptor()
+		backend = descriptor
+	}
 	s.writeJSON(w, http.StatusOK, map[string]any{
-		"name":        "Quantum Runtime",
-		"service":     "quantum-runtime",
-		"version":     s.build.Version,
-		"commit":      s.build.Commit,
-		"build_date":  s.build.BuildDate,
-		"api_version": "v1alpha1",
-		"backend": map[string]any{
-			"type": "ollama-adapter",
-		},
+		"name":             "Quantum Runtime",
+		"service":          "quantum-runtime",
+		"version":          s.build.Version,
+		"commit":           s.build.Commit,
+		"build_date":       s.build.BuildDate,
+		"api_version":      "v1alpha1",
+		"backend_contract": backendcontract.ContractVersion,
+		"backend":          backend,
 	})
 }
 
@@ -152,17 +164,139 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 		s.writeUnauthorized(w)
 		return
 	}
+	backend := any(nil)
+	if s.upstream != nil {
+		backend = s.upstream.Descriptor()
+	}
 	s.writeJSON(w, http.StatusOK, map[string]any{
-		"native_api": "v1alpha1",
+		"native_api":       "v1alpha1",
+		"backend_contract": backendcontract.ContractVersion,
 		"compatibility": []string{
 			"ollama-api-chat",
 			"ollama-api-generate",
 			"ollama-api-embeddings",
 			"ollama-api-model-read",
 		},
-		"backend":        "ollama-adapter",
+		"backend":        backend,
 		"model_mutation": s.config.AllowModelMutation,
 		"streaming":      true,
+	})
+}
+
+func (s *Server) handleBackends(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.writeMethodNotAllowed(w, r, http.MethodGet)
+		return
+	}
+	if !s.authorized(r) {
+		s.writeUnauthorized(w)
+		return
+	}
+	backends := []backendcontract.Descriptor{}
+	if s.upstream != nil {
+		descriptor := s.upstream.Descriptor()
+		if err := descriptor.Validate(); err != nil {
+			s.logger.Error("invalid backend descriptor", "error", err)
+			s.writeError(w, http.StatusInternalServerError, "invalid_backend_descriptor", "The configured backend descriptor is invalid.")
+			return
+		}
+		backends = append(backends, descriptor)
+	}
+	s.writeJSON(w, http.StatusOK, map[string]any{
+		"api_version":      "v1alpha1",
+		"contract_version": backendcontract.ContractVersion,
+		"count":            len(backends),
+		"backends":         backends,
+	})
+}
+
+func (s *Server) handleRoute(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		s.writeMethodNotAllowed(w, r, http.MethodPost)
+		return
+	}
+	if !s.authorized(r) {
+		s.writeUnauthorized(w)
+		return
+	}
+	if r.ContentLength > s.config.RequestBodyLimit {
+		s.writeError(w, http.StatusRequestEntityTooLarge, "request_too_large", "The request body exceeds the configured limit.")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, s.config.RequestBodyLimit)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	var request struct {
+		Model        string   `json:"model"`
+		Capabilities []string `json:"capabilities,omitempty"`
+	}
+	if err := decoder.Decode(&request); err != nil {
+		s.writeError(w, http.StatusBadRequest, "invalid_route_request", "The route request must be valid JSON with model and optional capabilities.")
+		return
+	}
+	if strings.TrimSpace(request.Model) == "" {
+		s.writeError(w, http.StatusBadRequest, "invalid_route_request", "model is required.")
+		return
+	}
+	descriptors := []backendcontract.Descriptor{}
+	if s.upstream != nil {
+		descriptors = append(descriptors, s.upstream.Descriptor())
+	}
+	router, err := backendrouter.New(builtinModelRegistry, descriptors, modelpolicy.MustBuiltin())
+	if err != nil {
+		s.logger.Error("construct backend router", "error", err)
+		s.writeError(w, http.StatusInternalServerError, "router_unavailable", "The backend router is not available.")
+		return
+	}
+	plan, err := router.Route(request.Model, backendrouter.Requirements{Capabilities: request.Capabilities})
+	if err != nil {
+		if errors.Is(err, backendrouter.ErrModelNotFound) {
+			s.writeError(w, http.StatusNotFound, "model_not_found", "The requested model is not present in the Quantum Runtime registry.")
+			return
+		}
+		if errors.Is(err, backendrouter.ErrNoCompatibleBackend) {
+			s.writeError(w, http.StatusUnprocessableEntity, "no_compatible_backend", "No configured backend satisfies the canonical model and requested capabilities.")
+			return
+		}
+		s.writeError(w, http.StatusInternalServerError, "route_failed", "Backend routing failed.")
+		return
+	}
+	s.writeJSON(w, http.StatusOK, map[string]any{"api_version": "v1alpha1", "plan": plan})
+}
+
+func (s *Server) handleModelPolicies(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.writeMethodNotAllowed(w, r, http.MethodGet)
+		return
+	}
+	if !s.authorized(r) {
+		s.writeUnauthorized(w)
+		return
+	}
+	policies := modelpolicy.MustBuiltin()
+	s.writeJSON(w, http.StatusOK, map[string]any{
+		"api_version":    "v1alpha1",
+		"schema_version": modelpolicy.SchemaVersion,
+		"count":          len(policies),
+		"policies":       policies,
+	})
+}
+
+func (s *Server) handleUpstreams(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.writeMethodNotAllowed(w, r, http.MethodGet)
+		return
+	}
+	if !s.authorized(r) {
+		s.writeUnauthorized(w)
+		return
+	}
+	ledger := upstreamledger.MustBuiltin()
+	s.writeJSON(w, http.StatusOK, map[string]any{
+		"api_version":       "v1alpha1",
+		"schema_version":    ledger.SchemaVersion,
+		"entries":           ledger.Entries,
+		"latest_known_good": ledger.LatestKnownGood(),
 	})
 }
 

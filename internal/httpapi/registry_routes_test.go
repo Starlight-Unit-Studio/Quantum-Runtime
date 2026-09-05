@@ -30,7 +30,7 @@ func TestModelListEndpoint(t *testing.T) {
 	if payload.SchemaVersion != "quantum.runtime/model-manifest/v1alpha1" {
 		t.Fatalf("unexpected schema version %q", payload.SchemaVersion)
 	}
-	if payload.Count != 3 || len(payload.Models) != 3 {
+	if payload.Count != 4 || len(payload.Models) != 4 {
 		t.Fatalf("unexpected registry size count=%d len=%d", payload.Count, len(payload.Models))
 	}
 }

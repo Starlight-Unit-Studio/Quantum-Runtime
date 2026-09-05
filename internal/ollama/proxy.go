@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/backendcontract"
 )
 
 var hopByHopHeaders = map[string]struct{}{
@@ -75,6 +77,67 @@ func (p *Proxy) Do(ctx context.Context, source *http.Request) (*http.Response, e
 		return nil, fmt.Errorf("ollama upstream request: %w", err)
 	}
 	return response, nil
+}
+
+func (p *Proxy) Descriptor() backendcontract.Descriptor {
+	version := "development"
+	if p != nil && strings.TrimSpace(p.version) != "" {
+		version = p.version
+	}
+	return backendcontract.Descriptor{
+		ContractVersion: backendcontract.ContractVersion,
+		ID:              "ollama",
+		Kind:            "ollama-adapter",
+		AdapterVersion:  version,
+		ExecutionMode:   "external",
+		State:           "unknown",
+		Capabilities: backendcontract.Capabilities{
+			Text: backendcontract.SupportConditional,
+			Architecture: backendcontract.ArchitectureCapabilities{
+				Dense: backendcontract.SupportConditional,
+				MoE:   backendcontract.SupportConditional,
+			},
+			MoE: backendcontract.MoECapabilities{
+				ExpertOffload:  backendcontract.SupportConditional,
+				ExpertParallel: backendcontract.SupportUnknown,
+			},
+			Speculative: backendcontract.SpeculativeCapabilities{
+				MTP:        backendcontract.SupportConditional,
+				DraftModel: backendcontract.SupportConditional,
+			},
+			Cache: backendcontract.CacheCapabilities{
+				KVOffload:   backendcontract.SupportConditional,
+				PromptCache: backendcontract.SupportConditional,
+			},
+			Multimodal: backendcontract.MultimodalCapabilities{
+				Vision: backendcontract.SupportConditional,
+				Audio:  backendcontract.SupportConditional,
+			},
+			Embeddings:       backendcontract.SupportConditional,
+			Reranking:        backendcontract.SupportUnknown,
+			ReasoningControl: backendcontract.SupportConditional,
+			Tools: backendcontract.ToolCapabilities{
+				Calling:   backendcontract.SupportConditional,
+				Streaming: backendcontract.SupportUnknown,
+			},
+			StructuredOutput: backendcontract.SupportConditional,
+			Streaming: backendcontract.StreamingCapabilities{
+				Content:       backendcontract.SupportSupported,
+				Reasoning:     backendcontract.SupportConditional,
+				ToolArguments: backendcontract.SupportUnknown,
+			},
+			Placement: backendcontract.PlacementCapabilities{
+				CPU:    backendcontract.SupportSupported,
+				GPU:    backendcontract.SupportConditional,
+				Hybrid: backendcontract.SupportConditional,
+			},
+			Context: backendcontract.ContextCapabilities{
+				BackendManaged:    true,
+				OverrideSupported: backendcontract.SupportConditional,
+				OverrideVerified:  false,
+			},
+		},
+	}
 }
 
 func (p *Proxy) Ready(ctx context.Context) error {
