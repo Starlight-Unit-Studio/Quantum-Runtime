@@ -112,19 +112,26 @@ func measureParallelCopy(ctx context.Context, workers int, budget time.Duration)
 	if chunkSize < 64<<10 {
 		chunkSize = 64 << 10
 	}
-	deadline := time.Now().Add(budget)
+
+	sources := make([][]byte, workers)
+	destinations := make([][]byte, workers)
+	for worker := 0; worker < workers; worker++ {
+		sources[worker] = make([]byte, chunkSize)
+		destinations[worker] = make([]byte, chunkSize)
+		seed := byte(worker)
+		for i := range sources[worker] {
+			sources[worker][i] = byte(i) ^ seed
+		}
+	}
+
 	started := time.Now()
+	deadline := started.Add(budget)
 	counts := make(chan uint64, workers)
 	var wg sync.WaitGroup
 	for worker := 0; worker < workers; worker++ {
 		wg.Add(1)
-		go func(seed byte) {
+		go func(src, dst []byte) {
 			defer wg.Done()
-			src := make([]byte, chunkSize)
-			dst := make([]byte, chunkSize)
-			for i := range src {
-				src[i] = byte(i) ^ seed
-			}
 			var total uint64
 			for time.Now().Before(deadline) {
 				select {
@@ -138,7 +145,7 @@ func measureParallelCopy(ctx context.Context, workers int, budget time.Duration)
 			}
 			runtime.KeepAlive(dst)
 			counts <- total
-		}(byte(worker))
+		}(sources[worker], destinations[worker])
 	}
 	wg.Wait()
 	close(counts)
@@ -157,19 +164,25 @@ func measureParallelRead(ctx context.Context, workers int, budget time.Duration)
 	if chunkSize < 64<<10 {
 		chunkSize = 64 << 10
 	}
-	deadline := time.Now().Add(budget)
+
+	buffers := make([][]byte, workers)
+	for worker := 0; worker < workers; worker++ {
+		buffers[worker] = make([]byte, chunkSize)
+		seed := byte(worker)
+		for i := range buffers[worker] {
+			buffers[worker][i] = byte(i*31+7) ^ seed
+		}
+	}
+
 	started := time.Now()
+	deadline := started.Add(budget)
 	type measurement struct{ bytes, sum uint64 }
 	counts := make(chan measurement, workers)
 	var wg sync.WaitGroup
 	for worker := 0; worker < workers; worker++ {
 		wg.Add(1)
-		go func(seed byte) {
+		go func(buf []byte) {
 			defer wg.Done()
-			buf := make([]byte, chunkSize)
-			for i := range buf {
-				buf[i] = byte(i*31+7) ^ seed
-			}
 			var total, sum uint64
 			for time.Now().Before(deadline) {
 				select {
@@ -185,7 +198,7 @@ func measureParallelRead(ctx context.Context, workers int, budget time.Duration)
 			}
 			runtime.KeepAlive(sum)
 			counts <- measurement{bytes: total, sum: sum}
-		}(byte(worker))
+		}(buffers[worker])
 	}
 	wg.Wait()
 	close(counts)
