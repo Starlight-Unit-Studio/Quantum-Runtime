@@ -14,6 +14,7 @@ import (
 	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/buildinfo"
 	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/config"
 	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/httpapi"
+	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/llamacpp"
 	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/ollama"
 )
 
@@ -33,9 +34,11 @@ func main() {
 		os.Exit(2)
 	}
 	if *checkConfig {
-		fmt.Printf("configuration valid: listen=%s upstream=%s mutation=%t auth=%t\n",
+		fmt.Printf("configuration valid: listen=%s backend=%s ollama=%s llama_cpp=%s mutation=%t auth=%t\n",
 			cfg.ListenAddress,
+			cfg.Backend,
 			cfg.UpstreamURL.Redacted(),
+			cfg.LlamaCPPURL.Redacted(),
 			cfg.AllowModelMutation,
 			cfg.AuthToken != "",
 		)
@@ -43,7 +46,13 @@ func main() {
 	}
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	backend := ollama.NewProxy(cfg.UpstreamURL, buildinfo.Version)
+	var backend httpapi.Upstream
+	switch cfg.Backend {
+	case "llama.cpp":
+		backend = llamacpp.New(cfg.LlamaCPPURL, buildinfo.Version, cfg.LlamaCPPModel, cfg.LlamaCPPAPIKey)
+	default:
+		backend = ollama.NewProxy(cfg.UpstreamURL, buildinfo.Version)
+	}
 	api := httpapi.New(cfg, backend, httpapi.BuildInfo{
 		Version:   buildinfo.Version,
 		Commit:    buildinfo.Commit,
@@ -66,7 +75,7 @@ func main() {
 		logger.Info("Quantum Runtime starting",
 			"version", buildinfo.Version,
 			"listen", cfg.ListenAddress,
-			"backend", "ollama-adapter",
+			"backend", backend.Descriptor().Kind,
 			"model_mutation", cfg.AllowModelMutation,
 		)
 		serveErrors <- server.ListenAndServe()

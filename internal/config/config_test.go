@@ -14,6 +14,12 @@ func TestLoadWithDefaults(t *testing.T) {
 	if cfg.ListenAddress != "127.0.0.1:11450" {
 		t.Fatalf("unexpected listen address: %q", cfg.ListenAddress)
 	}
+	if cfg.Backend != "ollama" {
+		t.Fatalf("unexpected default backend: %q", cfg.Backend)
+	}
+	if got := cfg.LlamaCPPURL.String(); got != "http://127.0.0.1:8080" {
+		t.Fatalf("unexpected llama.cpp URL: %q", got)
+	}
 	if got := cfg.UpstreamURL.String(); got != "http://127.0.0.1:11434" {
 		t.Fatalf("unexpected upstream URL: %q", got)
 	}
@@ -47,6 +53,42 @@ func TestLoadWithAllowsAuthenticatedNetworkBind(t *testing.T) {
 	}
 	if cfg.AuthToken != "test-secret" {
 		t.Fatalf("unexpected token value")
+	}
+}
+
+func TestLoadWithLlamaCPPBackend(t *testing.T) {
+	cfg, err := LoadWith(envMap(map[string]string{
+		"QUANTUM_RUNTIME_BACKEND":           "llama.cpp",
+		"QUANTUM_RUNTIME_LLAMA_CPP_URL":     "http://127.0.0.1:9090",
+		"QUANTUM_RUNTIME_LLAMA_CPP_MODEL":   "ember-coreui:latest",
+		"QUANTUM_RUNTIME_LLAMA_CPP_API_KEY": "llama-secret",
+	}))
+	if err != nil {
+		t.Fatalf("llama.cpp config: %v", err)
+	}
+	if cfg.Backend != "llama.cpp" || cfg.LlamaCPPModel != "ember-coreui:latest" || cfg.LlamaCPPAPIKey != "llama-secret" {
+		t.Fatalf("unexpected llama.cpp config: %#v", cfg)
+	}
+	if got := cfg.LlamaCPPURL.String(); got != "http://127.0.0.1:9090" {
+		t.Fatalf("unexpected llama.cpp URL: %q", got)
+	}
+}
+
+func TestLoadWithLlamaCPPRequiresModelIdentity(t *testing.T) {
+	_, err := LoadWith(envMap(map[string]string{
+		"QUANTUM_RUNTIME_BACKEND": "llama.cpp",
+	}))
+	if err == nil || !strings.Contains(err.Error(), "QUANTUM_RUNTIME_LLAMA_CPP_MODEL") {
+		t.Fatalf("expected llama.cpp model requirement, got %v", err)
+	}
+}
+
+func TestLoadWithRejectsUnknownBackend(t *testing.T) {
+	_, err := LoadWith(envMap(map[string]string{
+		"QUANTUM_RUNTIME_BACKEND": "mystery",
+	}))
+	if err == nil || !strings.Contains(err.Error(), "QUANTUM_RUNTIME_BACKEND") {
+		t.Fatalf("expected backend validation failure, got %v", err)
 	}
 }
 

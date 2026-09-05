@@ -130,3 +130,12 @@ Quantum Runtime 0.3 introduces `quantum.runtime/backend/v1alpha1` between the ca
 The first configured backend remains the external Ollama adoption adapter. The router is intentionally separate from transport forwarding so future llama.cpp, MLX and vLLM adapters can be added without changing canonical model identity or client APIs. A model may now carry artifact-specific backend metadata. Routing evaluates canonical model metadata, artifact compatibility, requested capabilities and backend state, then returns a deterministic plan. It never silently substitutes a different canonical model.
 
 CPU execution is a first-class placement capability. GPU and hybrid placement remain optional/conditional and are not assumed to be the default. The 0.3.0-alpha.1 slice does not yet execute llama.cpp natively; it establishes the interface and routing boundary required for that next step.
+
+
+## Direct portable backend slice (0.3.0-alpha.2)
+
+The first native portable execution path is a direct process boundary to `llama-server`. "Native" here means Quantum Runtime can execute through the low-level llama.cpp/GGUF engine without Ollama in the request path; it does not mean llama.cpp has been copied into the Go process or vendored into this repository. This keeps upstream licensing/versioning independent and preserves a replaceable adapter boundary.
+
+The active backend is selected explicitly at Runtime startup. `ollama` remains the default adoption/fallback mode. Selecting `llama.cpp` requires an explicit API model alias, and the adapter refuses requests for a different identity. This alpha does not yet perform automatic live fallback between simultaneous backends; deterministic multi-backend scheduling remains a later 0.3 slice after hardware discovery/calibration and artifact placement are implemented.
+
+The direct adapter intentionally fails closed for capability shapes that are not normalized end to end yet. A backend having an upstream feature is not enough: Runtime only advertises it when the compatibility bridge can preserve the feature without flattening or silently changing semantics.
