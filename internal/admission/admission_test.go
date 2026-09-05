@@ -90,8 +90,8 @@ func emberProfile(t *testing.T) deploymentprofile.Profile {
 func suitableHost() hostprofile.Profile {
 	return hostprofile.Profile{
 		SchemaVersion: hostprofile.SchemaVersion,
-		CPU: hostprofile.CPUProfile{PhysicalCores: 20, LogicalCores: 20, ThreadsPerCore: 1},
-		Memory: hostprofile.MemoryProfile{TotalBytes: 96 << 30, AvailableBytes: 80 << 30},
+		CPU:           hostprofile.CPUProfile{PhysicalCores: 20, LogicalCores: 20, ThreadsPerCore: 1},
+		Memory:        hostprofile.MemoryProfile{TotalBytes: 96 << 30, AvailableBytes: 80 << 30},
 	}
 }
 
