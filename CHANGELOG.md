@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0-alpha.4 - 2026-09-06
+
+- Added `quantum.runtime/deployment-profile/v1alpha1` with a builtin `ember-production` application profile kept separate from generic Quantum Runtime minimums.
+- Encoded the current supported E.M.B.E.R. production requirements as 64 GiB memory, ECC required, DDR5 preferred, 8 physical cores, GPU optional and MoE architecture mandatory; the historical ~2.6 GHz reference remains advisory only.
+- Added `quantum.runtime/admission-result/v1alpha1` with explicit `admitted`, `rejected` and `needs_operator_evidence` decisions and per-requirement evidence instead of guessing missing ECC/provider facts.
+- Added guest/process CPU-limit discovery from process affinity, cgroup cpusets and CPU quota plus virtualization evidence so an EPYC host model name cannot imply that all host-physical cores are allocated to a KVM guest.
+- Added operator core-budget evidence so application admission can reserve guest CPU capacity for other services without changing global Runtime topology.
+- Added `quantum.runtime/model-benchmark-plan/v1alpha1` to generate repeatable CPU worker-count matrices without claiming unmeasured throughput; a 20-core guest with four reserved system cores produces the intended 8/12/16 production candidates plus an optional 20-core full-host comparison.
+- Added `/v1/deployment-profiles`, `/v1/admission` and `/v1/benchmark-plan`; `/v1/host`, calibration and placement responses now also expose guest/process CPU limits.
+- Added `docs/EMBER-DEPLOYMENT-HISTORY.md` distinguishing historical functional compatibility with small models/RAG-Lite/LTM from the current supported E.M.B.E.R. production/intelligence profile.
+- Recorded the RS 4000 G12 (12 dedicated cores, 32 GB DDR5 ECC, 1 TB NVMe, Gemma 3 12B Q4) as a historical practical-use reference and the RS 12000 G12 (20 dedicated guest cores, 96 GB DDR5 ECC, ~3 TB NVMe RAID-10, KVM, Debian 13, 16-core Ember budget) as the current primary reference host.
+- Kept exact hardware for the earliest low-cost Netcup root-server generation unknown rather than reconstructing missing values from current product offerings.
+
 ## 0.3.0-alpha.3 - 2026-09-05
 
 - Added `quantum.runtime/host-profile/v1alpha1` Linux discovery for CPU vendor/model/features, physical/logical CPUs, SMT ratio, NUMA nodes, RAM/huge-page metadata, block/NVMe devices and visible AMD/NVIDIA/Intel accelerator metadata.
