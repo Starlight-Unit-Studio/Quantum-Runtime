@@ -16,13 +16,13 @@ Example response:
 {
   "status": "alive",
   "service": "quantum-runtime",
-  "version": "0.2.0-alpha.1"
+  "version": "0.3.0-alpha.4"
 }
 ```
 
 ### `GET /readyz`
 
-Checks whether the configured initial backend answers its version probe. Returns HTTP 503 when inference is unavailable.
+Checks whether the configured inference backend is ready. Returns HTTP 503 when inference is unavailable.
 
 ### `GET /v1/runtime`
 
@@ -42,7 +42,7 @@ Example shape:
 {
   "api_version": "v1alpha1",
   "schema_version": "quantum.runtime/model-manifest/v1alpha1",
-  "count": 3,
+  "count": 4,
   "models": [
     {
       "id": "ember-coreui",
@@ -86,7 +86,7 @@ Unknown identifiers fail with HTTP 404:
 }
 ```
 
-The registry is read-only in `0.2.0-alpha.1`. Install, remove, load and unload operations are intentionally not implemented yet.
+The registry remains read-only. Install, remove, load and unload operations are intentionally separate from the current registry contract.
 
 ## Model manifest contract
 
@@ -149,7 +149,7 @@ The Ollama mutation switch is a compatibility-proxy policy only. It does not imp
 
 ## Streaming
 
-Quantum Runtime forwards upstream streaming responses incrementally and flushes chunks to the client. It does not buffer a complete model answer before sending it.
+Quantum Runtime forwards or translates upstream streaming responses incrementally and flushes chunks to the client. It does not buffer a complete model answer before sending it.
 
 ## Authentication
 
@@ -161,7 +161,7 @@ When `QUANTUM_RUNTIME_AUTH_TOKEN` is configured, protected native and compatibil
 Authorization: Bearer <token>
 ```
 
-The Runtime bearer token, cookies and forwarding headers are stripped before a request reaches the initial Ollama backend.
+The Runtime bearer token, cookies and forwarding headers are stripped before a request reaches an inference backend. Optional llama.cpp credentials use their own configuration and are never copied from Runtime bearer credentials.
 
 `/healthz` and `/readyz` remain available for local service supervision.
 
@@ -178,8 +178,6 @@ Runtime-generated errors use:
   }
 }
 ```
-
-Upstream Ollama responses are preserved for compatibility after a request has been accepted and forwarded.
 
 ## Compatibility promise
 
@@ -203,8 +201,7 @@ The response contains `requested_identifier`, `canonical_model_id`, selected bac
 
 `GET /v1/upstreams` exposes the tested-upstream ledger plus the subset currently eligible as `latest_known_good`. An `observed-unpinned` entry is informative only and cannot be promoted automatically.
 
-
-## llama.cpp direct compatibility bridge (0.3.0-alpha.2)
+## llama.cpp direct compatibility bridge (0.3.0-alpha.2+)
 
 When `QUANTUM_RUNTIME_BACKEND=llama.cpp`, the existing application-facing Ollama compatibility routes are translated to a directly configured `llama-server`; Ollama is not present in that request path.
 
@@ -213,6 +210,100 @@ When `QUANTUM_RUNTIME_BACKEND=llama.cpp`, the existing application-facing Ollama
 - `/api/embed` and `/api/embeddings` -> `/v1/embeddings`
 - `/api/tags`, `/api/show`, `/api/ps` and `/api/version` are synthesized from the configured Runtime model identity because llama.cpp does not expose Ollama's model-store contract
 
-The configured `QUANTUM_RUNTIME_LLAMA_CPP_MODEL` must match the client-visible model identifier. A mismatched model request returns an error instead of silently substituting another canonical identity. Only `temperature`, `top_p` and `top_k` are normalized from the current Ollama `options` object in this first direct slice. Per-request `num_ctx`, predict/thread/repeat/seed/stop tuning is not injected.
+The configured `QUANTUM_RUNTIME_LLAMA_CPP_MODEL` must match the client-visible model identifier. A mismatched model request returns an error instead of silently substituting another canonical identity. Only `temperature`, `top_p` and `top_k` are normalized from the current Ollama `options` object in this direct path. Per-request `num_ctx`, predict/thread/repeat/seed/stop tuning is not injected.
 
 Vision, tool calls/tool history, explicit reasoning control and structured-output requests currently return `422 unsupported_backend_capability` on this direct adapter. This is intentional: the backend contract must not claim a capability until Runtime preserves its semantics end to end. Streaming content is translated from llama.cpp SSE to Ollama NDJSON; llama.cpp `reasoning_content`/`reasoning` deltas are preserved as the Ollama-compatible `message.thinking` field when present.
+
+## Host discovery, calibration and placement (0.3.0-alpha.3+)
+
+`GET /v1/host` returns the current host profile using `quantum.runtime/host-profile/v1alpha1`. The Linux discovery path reports OS-visible CPU topology/features, NUMA nodes, RAM and huge-page metadata, storage/NVMe devices and visible accelerator metadata.
+
+`POST /v1/host/calibrate` runs an explicit bounded synthetic memory copy/read and worker-count sweep. It is not a model tokens-per-second benchmark.
+
+`POST /v1/placement` creates a pre-activation CPU-first capacity plan using separate model-weight, MoE-expert, KV-cache, prefix-cache, projector, workspace and explicit cold-tier memory classes. A visible accelerator does not automatically win, and hot inference state is never silently spilled to disk.
+
+## Guest/process CPU limits (0.3.0-alpha.4)
+
+`GET /v1/host`, calibration and placement responses now include a separate `limits` object using `quantum.runtime/host-limits/v1alpha1`.
+
+The hardware profile and effective guest/process limits are deliberately distinct. Runtime evaluates:
+
+- the process `Cpus_allowed_list`
+- cgroup cpuset limits where exposed
+- cgroup CPU quota as a separate scheduling signal
+- virtualization evidence where available
+
+A physical CPU model name never implies that all host cores are allocated to a virtual machine. For example, an AMD EPYC 9645 host may physically contain 96 cores while a KVM guest exposes and is allowed to use a much smaller dedicated CPU set.
+
+## Application deployment profiles
+
+`GET /v1/deployment-profiles` returns `quantum.runtime/deployment-profile/v1alpha1` profiles.
+
+The builtin `ember-production` profile is application-specific and does not become a generic Quantum Runtime minimum. Its current policy is:
+
+```text
+memory minimum:       64 GiB
+ECC:                  required
+memory class:         DDR5 preferred
+physical CPU cores:   8 minimum
+reference clock:      ~2600 MHz advisory only
+accelerator:          optional
+model architecture:   MoE required
+```
+
+The raw clock reference is never used as a hard admission cutoff. Calibrated performance, CPU capabilities and memory/topology evidence are preferred when available.
+
+## E.M.B.E.R. admission
+
+`POST /v1/admission` evaluates a deployment profile against a canonical model and the current host/guest evidence.
+
+Example for a provider-verified KVM deployment:
+
+```json
+{
+  "profile": "ember-production",
+  "model": "gemma4:26b-a4b-reference",
+  "operator_evidence": {
+    "ecc_verified": true,
+    "memory_class": "ddr5",
+    "dedicated_physical_cores": 20,
+    "core_budget": 16
+  }
+}
+```
+
+The result uses `quantum.runtime/admission-result/v1alpha1` and returns one of:
+
+- `admitted`
+- `rejected`
+- `needs_operator_evidence`
+
+Properties that normal guest userspace cannot prove reliably, such as provider-guaranteed ECC or dedicated physical cores, remain explicit operator evidence rather than guessed facts. Unknown mandatory evidence therefore produces `needs_operator_evidence`. A dense model cannot satisfy a profile requiring `architecture_class=moe` merely because it belongs to an otherwise supported model family.
+
+`core_budget` is an application scheduling boundary, not a claim about host topology. It lets an operator keep part of a guest allocation free for other services while admitting E.M.B.E.R. against a smaller production budget.
+
+## Real-model CPU benchmark planning
+
+`POST /v1/benchmark-plan` creates a repeatable worker-count experiment matrix for a canonical model. It does not start inference and does not invent benchmark values.
+
+Example:
+
+```json
+{
+  "model": "gemma4:26b-a4b-reference",
+  "reserve_system_cores": 4,
+  "minimum_workers": 8,
+  "include_full_host_comparison": true
+}
+```
+
+On a 20-CPU effective guest allocation, this produces:
+
+```text
+8 workers    production candidate
+12 workers   production candidate
+16 workers   production candidate
+20 workers   full-host comparison
+```
+
+The benchmark plan is only an experiment definition. Prefill throughput, decode throughput, TTFT, memory footprint and the exact backend/model/quantization/context tuple still require real measurements before Runtime can promote a worker count or placement to latest-known-good.
