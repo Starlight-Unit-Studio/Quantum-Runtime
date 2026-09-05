@@ -22,12 +22,12 @@ type Candidate struct {
 }
 
 type Plan struct {
-	SchemaVersion       string      `json:"schema_version"`
-	EffectiveHostCPUs   int         `json:"effective_host_cpus"`
-	ProductionMaxWorkers int        `json:"production_max_workers"`
-	ReservedSystemCores int         `json:"reserved_system_cores"`
-	Candidates          []Candidate `json:"candidates"`
-	Notes               []string    `json:"notes,omitempty"`
+	SchemaVersion        string      `json:"schema_version"`
+	EffectiveHostCPUs    int         `json:"effective_host_cpus"`
+	ProductionMaxWorkers int         `json:"production_max_workers"`
+	ReservedSystemCores  int         `json:"reserved_system_cores"`
+	Candidates           []Candidate `json:"candidates"`
+	Notes                []string    `json:"notes,omitempty"`
 }
 
 func Build(limits hostlimits.Limits, req Request) (Plan, error) {
