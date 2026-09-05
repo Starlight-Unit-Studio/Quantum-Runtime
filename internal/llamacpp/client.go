@@ -208,7 +208,7 @@ func (c *Client) doChat(ctx context.Context, source *http.Request) (*http.Respon
 	if rawPresent(input.Tools) {
 		return unsupported("tools.calling is not yet normalized by the llama.cpp direct adapter"), nil
 	}
-	if rawPresent(input.Think) {
+	if rawProvided(input.Think) {
 		return unsupported("reasoning.control is not yet normalized by the llama.cpp direct adapter"), nil
 	}
 	if rawPresent(input.Format) {
@@ -437,7 +437,7 @@ func (c *Client) modelShow(source *http.Request) (*http.Response, error) {
 			"quantization_level": "unknown",
 		},
 		"model_info":   map[string]any{},
-		"capabilities": []string{"completion", "embedding"},
+		"capabilities": []string{"completion"},
 	}), nil
 }
 
@@ -828,6 +828,11 @@ func jsonResponse(status int, payload any) *http.Response {
 		},
 		Body: io.NopCloser(bytes.NewReader(data)),
 	}
+}
+
+func rawProvided(raw json.RawMessage) bool {
+	trimmed := bytes.TrimSpace(raw)
+	return len(trimmed) > 0 && !bytes.Equal(trimmed, []byte("null"))
 }
 
 func rawPresent(raw json.RawMessage) bool {

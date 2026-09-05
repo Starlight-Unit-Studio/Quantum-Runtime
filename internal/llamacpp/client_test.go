@@ -124,6 +124,7 @@ func TestChatFailsClosedOnUnsupportedCapabilitiesAndOptions(t *testing.T) {
 		`{"model":"ember-coreui:latest","messages":[{"role":"user","content":"hi","images":["abc"]}]}`,
 		`{"model":"ember-coreui:latest","messages":[{"role":"user","content":"hi"}],"tools":[{"type":"function"}]}`,
 		`{"model":"ember-coreui:latest","messages":[{"role":"user","content":"hi"}],"think":true}`,
+		`{"model":"ember-coreui:latest","messages":[{"role":"user","content":"hi"}],"think":false}`,
 		`{"model":"ember-coreui:latest","messages":[{"role":"user","content":"hi"}],"options":{"num_ctx":16384}}`,
 	}
 	for _, body := range cases {
