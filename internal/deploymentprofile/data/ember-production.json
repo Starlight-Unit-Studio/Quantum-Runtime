@@ -1,0 +1,24 @@
+{
+  "schema_version": "quantum.runtime/deployment-profile/v1alpha1",
+  "id": "ember-production",
+  "display_name": "E.M.B.E.R. Production",
+  "tier": "production",
+  "description": "Application-level E.M.B.E.R. production profile. This is not a generic Quantum Runtime minimum.",
+  "hardware": {
+    "memory": {
+      "minimum_bytes": 68719476736,
+      "ecc_required": true,
+      "preferred_class": "ddr5"
+    },
+    "cpu": {
+      "minimum_physical_cores": 8,
+      "reference_min_clock_mhz": 2600
+    },
+    "accelerator": {
+      "required": false
+    }
+  },
+  "model": {
+    "architecture_class": "moe"
+  }
+}
