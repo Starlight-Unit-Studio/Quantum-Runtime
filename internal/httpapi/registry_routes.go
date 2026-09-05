@@ -23,7 +23,7 @@ func (s *Server) withRegistryRoutes(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		}
 	})
-	return s.withResourceRoutes(registry)
+	return s.withDeploymentRoutes(s.withResourceRoutes(registry))
 }
 
 func (s *Server) handleModelList(w http.ResponseWriter, r *http.Request) {
