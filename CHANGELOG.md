@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0-alpha.3 - 2026-09-05
+
+- Added `quantum.runtime/host-profile/v1alpha1` Linux discovery for CPU vendor/model/features, physical/logical CPUs, SMT ratio, NUMA nodes, RAM/huge-page metadata, block/NVMe devices and visible AMD/NVIDIA/Intel accelerator metadata.
+- Added explicit bounded host calibration with representative physical-core and logical/SMT worker candidates, recording synthetic memory copy/read throughput and the best observed worker count without benchmarking automatically at daemon startup.
+- Added `quantum.runtime/placement-plan/v1alpha1` with separate model-weight, MoE-expert, KV-cache, prefix-cache, projector, workspace and cold-tier memory classes.
+- Implemented the first CPU-first placement policy: RAM/CPU is evaluated first and remains selected when the hot working set fits, even when an accelerator is visible.
+- Added pre-activation hybrid candidates only after CPU-only capacity fails and acceleration is explicitly allowed; model/MoE weights may split across RAM/VRAM while cache/workspace classes remain whole-tier in this slice.
+- Added an explicit NVMe cold tier. Hot execution state is never silently spilled to disk; insufficient RAM/VRAM capacity returns `capacity_exceeded` instead of relying on uncontrolled swap.
+- Added `/v1/host`, `/v1/host/calibrate` and `/v1/placement` plus an in-memory resource-control boundary for the last bounded calibration.
+- Added `docs/HARDWARE-PLACEMENT.md` documenting the generic CPU-first contract, current scope limits and the AMD EPYC Turin Tier-1 reference track.
+- Kept real-model prefill/decode benchmarking, NUMA/thread affinity, GGUF/KV size estimation, persistent calibration and automatic backend activation out of this slice until they can be validated independently.
+
 ## 0.3.0-alpha.2 - 2026-09-05
 
 - Added the first direct llama.cpp/ggml execution adapter using the external `llama-server` process boundary; selecting it removes Ollama from the inference request path without vendoring upstream code.
@@ -11,7 +23,6 @@
 - Kept per-request context/predict/thread/repeat/seed/stop tuning out of the direct bridge; only `temperature`, `top_p` and `top_k` are normalized in this slice.
 - Added optional separate llama-server API-key configuration. Runtime bearer credentials are never forwarded as llama.cpp credentials.
 - Updated the upstream ledger from planned to implemented-but-unpinned protocol evidence. No llama.cpp tag/commit is promoted to latest-known-good until real model/hardware conformance passes.
-
 
 ## 0.3.0-alpha.1 - 2026-09-05
 

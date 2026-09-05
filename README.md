@@ -4,7 +4,7 @@
 
 Quantum Runtime is the independent AI runtime and model-service project of Starlight Unit Studios.
 
-Current version: `0.3.0-alpha.2`
+Current version: `0.3.0-alpha.3`
 
 ## Current alpha scope
 
@@ -13,6 +13,7 @@ Quantum Runtime 0.3 adds the first model- and engine-neutral backend capability 
 1. the inference service endpoint used by Ember CoreUI, STΛRLIGHT UNIT The Game and later Quantum CoreOS
 2. the versioned model identity and read-only registry contract
 3. a non-destructive Linux service package that can be installed beside an existing Ollama service
+4. host-resource discovery, bounded calibration and a CPU-first placement contract for RAM/VRAM/NVMe candidates
 
 Quantum Runtime now has two local execution paths. Ollama remains the default adoption/fallback mode, while a direct llama.cpp path can talk to `llama-server` without an Ollama daemon in the inference request path:
 
@@ -41,6 +42,10 @@ The initial llama.cpp adapter deliberately uses the external `llama-server` proc
 - first direct llama.cpp/ggml backend path using `llama-server`, with Ollama absent from the request path when selected
 - Ollama chat/generate/embed compatibility translation to llama.cpp OpenAI-style endpoints
 - fail-closed handling for llama.cpp features not yet normalized: vision, tools, reasoning control and structured output
+- Linux host discovery for CPU topology/features, NUMA, RAM/huge pages, block/NVMe devices and visible accelerator/VRAM metadata
+- explicit bounded memory-bandwidth/worker-count calibration rather than automatic startup benchmarking
+- versioned CPU-first placement plans that prefer RAM/CPU when the hot set fits and only consider hybrid acceleration after CPU capacity fails
+- explicit NVMe cold-tier placement; hot execution state is never silently spilled to disk
 - streamed forwarding/translation, cancellation, body limits and backend timeouts
 - loopback-only default on `127.0.0.1:11450`
 - bearer-token requirement for any non-loopback bind
@@ -62,7 +67,7 @@ The initial llama.cpp adapter deliberately uses the external `llama-server` proc
 go run ./cmd/quantum-runtime
 ```
 
-Check the service and registry:
+Check the service, registry and host-resource contracts:
 
 ```bash
 curl -s http://127.0.0.1:11450/healthz
@@ -72,6 +77,8 @@ curl -s http://127.0.0.1:11450/v1/models
 curl -s http://127.0.0.1:11450/v1/backends
 curl -s http://127.0.0.1:11450/v1/model-policies
 curl -s http://127.0.0.1:11450/v1/upstreams
+curl -s http://127.0.0.1:11450/v1/host
+curl -s -X POST http://127.0.0.1:11450/v1/host/calibrate
 ```
 
 Run all verification:
@@ -115,7 +122,7 @@ The manifest separates canonical model identity from aliases, source revision, b
 
 ## Direct llama.cpp backend
 
-`0.3.0-alpha.2` can use an already running `llama-server` directly. The Runtime does not download, replace or manage the llama.cpp binary or GGUF files in this slice. Configure the server with an API-visible alias that matches the model identifier used by the client, for example:
+`0.3.0-alpha.2` and later can use an already running `llama-server` directly. The Runtime does not download, replace or manage the llama.cpp binary or GGUF files in this slice. Configure the server with an API-visible alias that matches the model identifier used by the client, for example:
 
 ```bash
 llama-server -m /path/model.gguf --host 127.0.0.1 --port 8080 --alias ember-coreui:latest
@@ -131,6 +138,14 @@ go run ./cmd/quantum-runtime
 ```
 
 If the llama.cpp server uses `--api-key`, set `QUANTUM_RUNTIME_LLAMA_CPP_API_KEY` locally. Runtime bearer credentials are never reused as llama.cpp credentials. The initial bridge supports text chat, text generation, embeddings and model-read compatibility. Unsupported modalities/capabilities fail closed instead of being silently dropped.
+
+## CPU-first host placement
+
+`0.3.0-alpha.3` adds the first generic hardware/resource contract. `GET /v1/host` reports OS-visible CPU, NUMA, RAM, storage and accelerator metadata. `POST /v1/host/calibrate` runs an explicit bounded synthetic memory/worker sweep. `POST /v1/placement` creates a pre-activation capacity plan for model weights, MoE experts, caches, projectors, workspace and an optional explicit cold NVMe tier.
+
+CPU/RAM remains the baseline. A visible GPU does not automatically win: if the hot working set fits usable RAM, the first planner returns `cpu_only`. Hybrid placement is only considered after CPU-only capacity fails and acceleration was explicitly allowed. NVMe is never used as an implicit escape hatch for hot state.
+
+This is a truthful capacity/host foundation, not yet a claim of measured model throughput. Real backend/model prefill/decode calibration, NUMA affinity, thread pinning, GGUF size estimation and backend activation from placement plans remain later Runtime 0.3 slices. See `docs/HARDWARE-PLACEMENT.md`.
 
 ## Ember CoreUI adoption
 
@@ -186,7 +201,8 @@ The process rejects a network-wide bind when no bearer token is configured.
 
 ```text
 Quantum Runtime
-    model identity, lifecycle, inference APIs, streaming, backend adapters
+    model identity, lifecycle, inference APIs, streaming, backend adapters,
+    host discovery, calibration and placement policy
 
 Quantum Control
     server, hosting, service, database, backup and update management
@@ -201,6 +217,7 @@ Quantum CoreOS consumes released Quantum Runtime packages rather than maintainin
 
 - `docs/ARCHITECTURE.md`
 - `docs/API.md`
+- `docs/HARDWARE-PLACEMENT.md`
 - `docs/INSTALLATION.md`
 - `docs/ROADMAP.md`
 - `docs/SECURITY.md`
