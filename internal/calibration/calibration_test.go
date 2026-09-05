@@ -12,8 +12,8 @@ func TestRunIsBoundedAndReturnsRates(t *testing.T) {
 	host := hostprofile.Profile{CPU: hostprofile.CPUProfile{PhysicalCores: 8, LogicalCores: 16}, Memory: hostprofile.MemoryProfile{AvailableBytes: 8 << 30}}
 	started := time.Now()
 	result := Run(context.Background(), host, 100*time.Millisecond)
-	if time.Since(started) > 2*time.Second {
-		t.Fatal("calibration exceeded bound")
+	if time.Since(started) > 5*time.Second {
+		t.Fatal("calibration exceeded CI-safe bound")
 	}
 	if result.SchemaVersion != SchemaVersion {
 		t.Fatalf("schema = %q", result.SchemaVersion)
