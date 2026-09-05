@@ -108,9 +108,9 @@ func measureParallelCopy(ctx context.Context, workers int, budget time.Duration)
 	if budget <= 0 || workers < 1 {
 		return 0
 	}
-	chunkSize := (32 << 20) / workers
-	if chunkSize < 256<<10 {
-		chunkSize = 256 << 10
+	chunkSize := (8 << 20) / workers
+	if chunkSize < 64<<10 {
+		chunkSize = 64 << 10
 	}
 	deadline := time.Now().Add(budget)
 	started := time.Now()
@@ -153,9 +153,9 @@ func measureParallelRead(ctx context.Context, workers int, budget time.Duration)
 	if budget <= 0 || workers < 1 {
 		return 0, 0
 	}
-	chunkSize := (32 << 20) / workers
-	if chunkSize < 256<<10 {
-		chunkSize = 256 << 10
+	chunkSize := (8 << 20) / workers
+	if chunkSize < 64<<10 {
+		chunkSize = 64 << 10
 	}
 	deadline := time.Now().Add(budget)
 	started := time.Now()
