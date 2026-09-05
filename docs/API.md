@@ -202,3 +202,17 @@ The response contains `requested_identifier`, `canonical_model_id`, selected bac
 `GET /v1/model-policies` exposes machine-readable backend/model validation policies. The initial Gemma 4 + Ollama Turin policy records the minimal known-good sampling profile and classifies additional tuning knobs as blocked-unverified until isolated A/B validation.
 
 `GET /v1/upstreams` exposes the tested-upstream ledger plus the subset currently eligible as `latest_known_good`. An `observed-unpinned` entry is informative only and cannot be promoted automatically.
+
+
+## llama.cpp direct compatibility bridge (0.3.0-alpha.2)
+
+When `QUANTUM_RUNTIME_BACKEND=llama.cpp`, the existing application-facing Ollama compatibility routes are translated to a directly configured `llama-server`; Ollama is not present in that request path.
+
+- `/api/chat` -> `/v1/chat/completions`
+- `/api/generate` -> `/v1/completions`
+- `/api/embed` and `/api/embeddings` -> `/v1/embeddings`
+- `/api/tags`, `/api/show`, `/api/ps` and `/api/version` are synthesized from the configured Runtime model identity because llama.cpp does not expose Ollama's model-store contract
+
+The configured `QUANTUM_RUNTIME_LLAMA_CPP_MODEL` must match the client-visible model identifier. A mismatched model request returns an error instead of silently substituting another canonical identity. Only `temperature`, `top_p` and `top_k` are normalized from the current Ollama `options` object in this first direct slice. Per-request `num_ctx`, predict/thread/repeat/seed/stop tuning is not injected.
+
+Vision, tool calls/tool history, explicit reasoning control and structured-output requests currently return `422 unsupported_backend_capability` on this direct adapter. This is intentional: the backend contract must not claim a capability until Runtime preserves its semantics end to end. Streaming content is translated from llama.cpp SSE to Ollama NDJSON; llama.cpp `reasoning_content`/`reasoning` deltas are preserved as the Ollama-compatible `message.thinking` field when present.

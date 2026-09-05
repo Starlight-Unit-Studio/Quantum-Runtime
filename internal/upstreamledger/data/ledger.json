@@ -17,21 +17,37 @@
       "disabled_capabilities": [
         "Gemma 4 context/generation/predict overrides remain blocked-unverified on the Turin profile until isolated controlled A/B validation"
       ],
-      "hardware_classes": ["amd-epyc-turin-cpu"],
+      "hardware_classes": [
+        "amd-epyc-turin-cpu"
+      ],
       "license_ref": "upstream-license-must-be-verified-at-pin",
       "notes": "Extended CoreUI validation and downstream Game confirmation exist, but the exact Ollama upstream version was not recorded. This observation is intentionally ineligible as a latest-known-good production pin."
     },
     {
-      "id": "llama-cpp-native-planned",
+      "id": "llama-cpp-direct-adapter-observed-2026-09-05",
       "project": "llama.cpp / ggml",
       "backend_kind": "llama.cpp",
       "source_url": "https://github.com/ggml-org/llama.cpp",
-      "status": "planned",
-      "enabled_capabilities": [],
-      "disabled_capabilities": [],
-      "hardware_classes": ["linux-cpu", "linux-hybrid"],
-      "license_ref": "upstream-license-must-be-verified-at-pin",
-      "notes": "First native portable backend priority. No upstream tag or commit is promoted until the Runtime conformance suite passes."
+      "status": "observed-unpinned",
+      "enabled_capabilities": [
+        "inference.text",
+        "embeddings",
+        "streaming.content",
+        "placement.cpu",
+        "placement.gpu",
+        "placement.hybrid"
+      ],
+      "disabled_capabilities": [
+        "vision, tool calls, reasoning control and structured-output normalization fail closed in the initial direct adapter",
+        "context overrides are backend-managed and are not injected per request"
+      ],
+      "hardware_classes": [
+        "linux-cpu",
+        "linux-hybrid"
+      ],
+      "license_ref": "MIT; upstream copyright 2023-2026 The ggml authors",
+      "notes": "Runtime 0.3.0-alpha.2 implements a direct llama-server HTTP adapter for chat, completions, embeddings and model-read compatibility without Ollama in the request path. The protocol implementation is unit-tested against fixtures, but no upstream tag/commit or hardware/model run is promoted to latest-known-good until the conformance matrix passes.",
+      "observed_at": "2026-09-05T00:00:00Z"
     }
   ]
 }

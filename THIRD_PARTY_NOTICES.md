@@ -8,6 +8,8 @@ The `0.1.0-alpha.1` Go source uses the Go standard library and does not vendor a
 
 Quantum Runtime can connect to an existing Ollama service in adoption mode. Ollama is not distributed by this repository and remains subject to its own license and notices.
 
+Quantum Runtime `0.3.0-alpha.2` can also connect directly to an operator-provided `llama-server` from the llama.cpp/ggml project. llama.cpp is not vendored or distributed by this repository in this release. Upstream llama.cpp is MIT-licensed and carries copyright notice `Copyright (c) 2023-2026 The ggml authors`; operators remain responsible for the exact upstream version they install and its accompanying notices.
+
 Quantum Runtime does not currently distribute Gemma, other model weights, datasets, or a third-party inference engine. Any model or engine selected by an operator remains subject to its own terms, acceptable-use rules, attribution requirements, and distribution restrictions.
 
 ## Future bundled components

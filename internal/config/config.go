@@ -13,7 +13,9 @@ import (
 
 const (
 	defaultListenAddress    = "127.0.0.1:11450"
+	defaultBackend          = "ollama"
 	defaultUpstreamURL      = "http://127.0.0.1:11434"
+	defaultLlamaCPPURL      = "http://127.0.0.1:8080"
 	defaultUpstreamTimeout  = 15 * time.Minute
 	defaultRequestBodyLimit = int64(128 << 20)
 )
@@ -23,7 +25,11 @@ const (
 // stable process and API boundary.
 type Config struct {
 	ListenAddress      string
+	Backend            string
 	UpstreamURL        *url.URL
+	LlamaCPPURL        *url.URL
+	LlamaCPPModel      string
+	LlamaCPPAPIKey     string
 	UpstreamTimeout    time.Duration
 	RequestBodyLimit   int64
 	AllowModelMutation bool
@@ -42,10 +48,16 @@ func LoadWith(getenv func(string) string) (Config, error) {
 	}
 
 	listen := valueOrDefault(getenv("QUANTUM_RUNTIME_LISTEN"), defaultListenAddress)
+	backend := strings.ToLower(valueOrDefault(getenv("QUANTUM_RUNTIME_BACKEND"), defaultBackend))
 	upstreamRaw := valueOrDefault(getenv("QUANTUM_RUNTIME_OLLAMA_URL"), defaultUpstreamURL)
 	upstream, err := url.Parse(upstreamRaw)
 	if err != nil {
 		return Config{}, fmt.Errorf("parse QUANTUM_RUNTIME_OLLAMA_URL: %w", err)
+	}
+	llamaRaw := valueOrDefault(getenv("QUANTUM_RUNTIME_LLAMA_CPP_URL"), defaultLlamaCPPURL)
+	llamaURL, err := url.Parse(llamaRaw)
+	if err != nil {
+		return Config{}, fmt.Errorf("parse QUANTUM_RUNTIME_LLAMA_CPP_URL: %w", err)
 	}
 
 	upstreamTimeout, err := durationOrDefault(getenv("QUANTUM_RUNTIME_UPSTREAM_TIMEOUT"), defaultUpstreamTimeout)
@@ -65,7 +77,11 @@ func LoadWith(getenv func(string) string) (Config, error) {
 
 	cfg := Config{
 		ListenAddress:      listen,
+		Backend:            backend,
 		UpstreamURL:        upstream,
+		LlamaCPPURL:        llamaURL,
+		LlamaCPPModel:      strings.TrimSpace(getenv("QUANTUM_RUNTIME_LLAMA_CPP_MODEL")),
+		LlamaCPPAPIKey:     strings.TrimSpace(getenv("QUANTUM_RUNTIME_LLAMA_CPP_API_KEY")),
 		UpstreamTimeout:    upstreamTimeout,
 		RequestBodyLimit:   bodyLimit,
 		AllowModelMutation: allowMutation,
@@ -83,17 +99,17 @@ func (c Config) Validate() error {
 	if strings.TrimSpace(c.ListenAddress) == "" {
 		return errors.New("listen address is empty")
 	}
-	if c.UpstreamURL == nil {
-		return errors.New("upstream URL is missing")
+	if c.Backend != "ollama" && c.Backend != "llama.cpp" {
+		return fmt.Errorf("QUANTUM_RUNTIME_BACKEND must be ollama or llama.cpp, got %q", c.Backend)
 	}
-	if c.UpstreamURL.Scheme != "http" && c.UpstreamURL.Scheme != "https" {
-		return errors.New("upstream URL must use http or https")
+	if err := validateHTTPURL("Ollama upstream", c.UpstreamURL); err != nil {
+		return err
 	}
-	if c.UpstreamURL.Host == "" {
-		return errors.New("upstream URL host is missing")
+	if err := validateHTTPURL("llama.cpp upstream", c.LlamaCPPURL); err != nil {
+		return err
 	}
-	if c.UpstreamURL.User != nil {
-		return errors.New("upstream URL must not contain credentials")
+	if c.Backend == "llama.cpp" && strings.TrimSpace(c.LlamaCPPModel) == "" {
+		return errors.New("QUANTUM_RUNTIME_LLAMA_CPP_MODEL is required when QUANTUM_RUNTIME_BACKEND=llama.cpp")
 	}
 	if c.UpstreamTimeout <= 0 {
 		return errors.New("upstream timeout must be positive")
@@ -103,6 +119,22 @@ func (c Config) Validate() error {
 	}
 	if !isLoopbackListenAddress(c.ListenAddress) && strings.TrimSpace(c.AuthToken) == "" {
 		return errors.New("non-loopback listen address requires QUANTUM_RUNTIME_AUTH_TOKEN")
+	}
+	return nil
+}
+
+func validateHTTPURL(name string, value *url.URL) error {
+	if value == nil {
+		return fmt.Errorf("%s URL is missing", name)
+	}
+	if value.Scheme != "http" && value.Scheme != "https" {
+		return fmt.Errorf("%s URL must use http or https", name)
+	}
+	if value.Host == "" {
+		return fmt.Errorf("%s URL host is missing", name)
+	}
+	if value.User != nil {
+		return fmt.Errorf("%s URL must not contain credentials", name)
 	}
 	return nil
 }

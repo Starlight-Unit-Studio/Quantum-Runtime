@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0-alpha.2 - 2026-09-05
+
+- Added the first direct llama.cpp/ggml execution adapter using the external `llama-server` process boundary; selecting it removes Ollama from the inference request path without vendoring upstream code.
+- Added explicit `QUANTUM_RUNTIME_BACKEND=ollama|llama.cpp` selection while keeping Ollama as the default adoption/fallback mode.
+- Added direct Ollama-compatibility translation for chat, generation and embeddings using llama.cpp `/v1/chat/completions`, `/v1/completions` and `/v1/embeddings`, plus synthetic model-read compatibility responses.
+- Preserved streaming content by translating llama.cpp SSE to Ollama NDJSON and preserved reasoning text as `message.thinking` when upstream emits `reasoning_content`/`reasoning`.
+- Enforced model-identity matching between `QUANTUM_RUNTIME_LLAMA_CPP_MODEL` and the client-visible request model; no silent model substitution is allowed.
+- Kept the first llama.cpp bridge deliberately fail-closed for vision, tools/tool history, explicit reasoning control and structured output until those semantics are normalized end to end.
+- Kept per-request context/predict/thread/repeat/seed/stop tuning out of the direct bridge; only `temperature`, `top_p` and `top_k` are normalized in this slice.
+- Added optional separate llama-server API-key configuration. Runtime bearer credentials are never forwarded as llama.cpp credentials.
+- Updated the upstream ledger from planned to implemented-but-unpinned protocol evidence. No llama.cpp tag/commit is promoted to latest-known-good until real model/hardware conformance passes.
+
 
 ## 0.3.0-alpha.1 - 2026-09-05
 
@@ -112,7 +124,7 @@ Initial Quantum Runtime foundation.
 
 ### Not yet implemented
 
-- independent native inference
+- fully managed/bundled native inference engine lifecycle (the first direct llama.cpp process adapter now exists)
 - managed model store
 - Quantum native chat API
 - OpenAI-compatible API

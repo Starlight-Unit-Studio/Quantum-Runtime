@@ -4,7 +4,7 @@
 
 Quantum Runtime is the independent AI runtime and model-service project of Starlight Unit Studios.
 
-Current version: `0.3.0-alpha.1`
+Current version: `0.3.0-alpha.2`
 
 ## Current alpha scope
 
@@ -14,19 +14,20 @@ Quantum Runtime 0.3 adds the first model- and engine-neutral backend capability 
 2. the versioned model identity and read-only registry contract
 3. a non-destructive Linux service package that can be installed beside an existing Ollama service
 
-Inference still runs in **Ollama adoption mode**:
+Quantum Runtime now has two local execution paths. Ollama remains the default adoption/fallback mode, while a direct llama.cpp path can talk to `llama-server` without an Ollama daemon in the inference request path:
 
 ```text
 Ember CoreUI / Game / client
               |
               v
       Quantum Runtime :11450
-              |
-              v
-       existing Ollama :11434
+          /           \
+         v             v
+ llama-server :8080   Ollama :11434
+ direct local path    adoption/fallback
 ```
 
-Quantum Runtime owns the application-facing endpoint, request policy, authentication boundary, health reporting, timeouts, compatibility allowlist, model-manifest contract and Runtime service lifecycle. It does not yet execute model inference independently.
+The initial llama.cpp adapter deliberately uses the external `llama-server` process boundary rather than vendoring or forking upstream code. Quantum Runtime owns the application-facing endpoint, request policy, authentication boundary, compatibility translation and capability reporting; llama.cpp owns the low-level GGUF inference engine. Ollama remains the default until an operator explicitly selects `llama.cpp`.
 
 ## Current capabilities
 
@@ -37,7 +38,10 @@ Quantum Runtime owns the application-facing endpoint, request policy, authentica
 - machine-readable model/backend policy for the validated Gemma 4 + Ollama minimal profile
 - machine-readable upstream ledger where unpinned observations cannot become latest-known-good production pins
 - Ollama-compatible chat, generation, embedding and model-read routes
-- streamed forwarding, cancellation, body limits and backend timeouts
+- first direct llama.cpp/ggml backend path using `llama-server`, with Ollama absent from the request path when selected
+- Ollama chat/generate/embed compatibility translation to llama.cpp OpenAI-style endpoints
+- fail-closed handling for llama.cpp features not yet normalized: vision, tools, reasoning control and structured output
+- streamed forwarding/translation, cancellation, body limits and backend timeouts
 - loopback-only default on `127.0.0.1:11450`
 - bearer-token requirement for any non-loopback bind
 - model mutation disabled by default
@@ -109,6 +113,25 @@ Builtin contract/profile examples live under `internal/modelregistry/data/` for 
 
 The manifest separates canonical model identity from aliases, source revision, backend, artifacts, SHA-256 integrity, capabilities, compatibility, persona package, lifecycle state and provenance. In 0.3, artifacts may additionally declare their own backend/format/role, allowing one canonical identity to acquire multiple backend artifacts without changing the client-facing model ID. Generic architecture metadata now distinguishes dense, MoE and unknown profiles and can carry context-policy and expert-topology data without exposing family-specific fields in the public API. An `unverified` example is a contract/profile reference, not a cryptographic claim about unresolved model artifacts.
 
+## Direct llama.cpp backend
+
+`0.3.0-alpha.2` can use an already running `llama-server` directly. The Runtime does not download, replace or manage the llama.cpp binary or GGUF files in this slice. Configure the server with an API-visible alias that matches the model identifier used by the client, for example:
+
+```bash
+llama-server -m /path/model.gguf --host 127.0.0.1 --port 8080 --alias ember-coreui:latest
+```
+
+Then start Quantum Runtime with:
+
+```bash
+QUANTUM_RUNTIME_BACKEND=llama.cpp \
+QUANTUM_RUNTIME_LLAMA_CPP_URL=http://127.0.0.1:8080 \
+QUANTUM_RUNTIME_LLAMA_CPP_MODEL=ember-coreui:latest \
+go run ./cmd/quantum-runtime
+```
+
+If the llama.cpp server uses `--api-key`, set `QUANTUM_RUNTIME_LLAMA_CPP_API_KEY` locally. Runtime bearer credentials are never reused as llama.cpp credentials. The initial bridge supports text chat, text generation, embeddings and model-read compatibility. Unsupported modalities/capabilities fail closed instead of being silently dropped.
+
 ## Ember CoreUI adoption
 
 Ember CoreUI remains an independent Repack. Quantum Runtime is optional and Quantum CoreOS is not required.
@@ -147,7 +170,11 @@ The future Quantum CoreOS TCI profile targets **Gemma 4 e4b** and references its
 | Variable | Default | Purpose |
 |---|---:|---|
 | `QUANTUM_RUNTIME_LISTEN` | `127.0.0.1:11450` | HTTP listen address |
-| `QUANTUM_RUNTIME_OLLAMA_URL` | `http://127.0.0.1:11434` | Initial adoption backend |
+| `QUANTUM_RUNTIME_BACKEND` | `ollama` | Active backend: `ollama` or `llama.cpp` |
+| `QUANTUM_RUNTIME_OLLAMA_URL` | `http://127.0.0.1:11434` | Ollama adoption/fallback endpoint |
+| `QUANTUM_RUNTIME_LLAMA_CPP_URL` | `http://127.0.0.1:8080` | Direct llama-server endpoint |
+| `QUANTUM_RUNTIME_LLAMA_CPP_MODEL` | empty | Required model/API alias when `llama.cpp` is selected |
+| `QUANTUM_RUNTIME_LLAMA_CPP_API_KEY` | empty | Optional llama-server API key; never logged |
 | `QUANTUM_RUNTIME_UPSTREAM_TIMEOUT` | `15m` | Maximum backend request duration |
 | `QUANTUM_RUNTIME_MAX_REQUEST_BYTES` | `134217728` | Request body limit |
 | `QUANTUM_RUNTIME_ALLOW_MODEL_MUTATION` | `false` | Compatibility mutation proxy policy |
