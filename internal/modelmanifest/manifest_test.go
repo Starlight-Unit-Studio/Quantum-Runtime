@@ -91,6 +91,32 @@ func TestVerifiedManifestRequiresIntegrityAndImmutableRevision(t *testing.T) {
 	}
 }
 
+func TestMultiBackendArtifactAndMoEMetadata(t *testing.T) {
+	manifest := validManifest()
+	manifest.Backend = Backend{Type: "external"}
+	manifest.Artifacts = []Artifact{
+		{URI: "ollama:test-model:latest", Backend: "ollama-adapter", Format: "ollama", Role: "inference"},
+		{URI: "file:///models/test-model.gguf", Backend: "llama.cpp", Format: "gguf", Role: "inference"},
+	}
+	manifest.Model.ArchitectureClass = "moe"
+	manifest.Model.TotalParametersB = 26
+	manifest.Model.ActiveParametersB = 4
+	manifest.Model.Experts = &ExpertTopology{Total: 8, Active: 2, Shared: 1}
+	manifest.Model.ContextPolicy = ModelContextPolicy{BackendManaged: true, OverrideSupported: true}
+	if err := manifest.Validate(); err != nil {
+		t.Fatalf("multi-backend MoE manifest rejected: %v", err)
+	}
+}
+
+func TestDenseModelRejectsExpertTopology(t *testing.T) {
+	manifest := validManifest()
+	manifest.Model.ArchitectureClass = "dense"
+	manifest.Model.Experts = &ExpertTopology{Total: 8, Active: 2}
+	if err := manifest.Validate(); err == nil || !strings.Contains(err.Error(), "architecture_class=moe") {
+		t.Fatalf("expected dense expert topology rejection, got %v", err)
+	}
+}
+
 func TestSemanticPrereleaseOrdering(t *testing.T) {
 	manifest := validManifest()
 	manifest.Compatibility.MinRuntimeVersion = "0.2.0-alpha.2"

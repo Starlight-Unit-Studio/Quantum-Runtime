@@ -11,8 +11,8 @@ func TestBuiltinRegistryLoadsExamples(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load builtin registry: %v", err)
 	}
-	if registry.Len() != 3 {
-		t.Fatalf("expected 3 builtin manifests, got %d", registry.Len())
+	if registry.Len() != 4 {
+		t.Fatalf("expected 4 builtin manifests, got %d", registry.Len())
 	}
 
 	manifest, ok := registry.Lookup("ember-coreui:latest")
@@ -41,7 +41,7 @@ func TestListIsStableAndSorted(t *testing.T) {
 		t.Fatal(err)
 	}
 	entries := registry.List()
-	if len(entries) != 3 {
+	if len(entries) != 4 {
 		t.Fatalf("unexpected registry length %d", len(entries))
 	}
 	for i := 1; i < len(entries); i++ {

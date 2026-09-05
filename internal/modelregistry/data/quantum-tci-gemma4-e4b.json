@@ -2,7 +2,9 @@
   "schema_version": "quantum.runtime/model-manifest/v1alpha1",
   "id": "quantum-tci-gemma4-e4b",
   "display_name": "Quantum CoreOS TCI Gemma 4 e4b Profile",
-  "aliases": ["quantum-tci:e4b"],
+  "aliases": [
+    "quantum-tci:e4b"
+  ],
   "source": {
     "provider": "profile",
     "reference": "gemma4/e4b",
@@ -20,7 +22,13 @@
     "architecture": "gemma4",
     "parameter_class": "e4b",
     "quantization": "profile_dependent",
-    "context_window": 8192
+    "context_window": 8192,
+    "architecture_class": "unknown",
+    "context_policy": {
+      "backend_managed": true,
+      "override_supported": true,
+      "override_verified": false
+    }
   },
   "capabilities": {
     "text": true,
@@ -28,7 +36,9 @@
     "audio": false,
     "embeddings": false,
     "tools": false,
-    "thinking": true
+    "thinking": true,
+    "reasoning_control": true,
+    "structured_output": false
   },
   "compatibility": {
     "min_runtime_version": "0.2.0-alpha.1"

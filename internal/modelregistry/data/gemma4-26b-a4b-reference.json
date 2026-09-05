@@ -1,0 +1,40 @@
+{
+  "schema_version": "quantum.runtime/model-manifest/v1alpha1",
+  "id": "gemma4-26b-a4b-reference",
+  "display_name": "Gemma 4 26B A4B MoE Reference Profile",
+  "aliases": ["gemma4:26b-a4b-reference"],
+  "source": {
+    "provider": "profile",
+    "reference": "gemma4/26b-a4b",
+    "revision": "unresolved"
+  },
+  "backend": {"type": "external"},
+  "artifacts": [{"uri": "profile://gemma4/26b-a4b", "role": "inference"}],
+  "model": {
+    "architecture": "gemma4",
+    "architecture_class": "moe",
+    "parameter_class": "26b-a4b",
+    "total_parameters_b": 26,
+    "active_parameters_b": 4,
+    "quantization": "profile_dependent",
+    "context_window": 8192,
+    "context_policy": {
+      "backend_managed": true,
+      "override_supported": true,
+      "override_verified": false
+    }
+  },
+  "capabilities": {
+    "text": true,
+    "vision": true,
+    "audio": false,
+    "embeddings": false,
+    "tools": true,
+    "thinking": true,
+    "reasoning_control": true,
+    "structured_output": true
+  },
+  "compatibility": {"min_runtime_version": "0.3.0-alpha.1"},
+  "state": {"install": "available", "verification": "unverified", "lifecycle": "active"},
+  "provenance": {"publisher": "Starlight Unit Studios"}
+}

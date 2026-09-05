@@ -1,0 +1,37 @@
+{
+  "schema_version": "quantum.runtime/upstream-ledger/v1alpha1",
+  "entries": [
+    {
+      "id": "ollama-adoption-observed-2026-09-04",
+      "project": "Ollama",
+      "backend_kind": "ollama-adapter",
+      "source_url": "https://github.com/ollama/ollama",
+      "status": "observed-unpinned",
+      "observed_at": "2026-09-04T00:00:00Z",
+      "enabled_capabilities": [
+        "inference.text",
+        "multimodal.vision",
+        "reasoning.control",
+        "streaming.content"
+      ],
+      "disabled_capabilities": [
+        "Gemma 4 context/generation/predict overrides remain blocked-unverified on the Turin profile until isolated controlled A/B validation"
+      ],
+      "hardware_classes": ["amd-epyc-turin-cpu"],
+      "license_ref": "upstream-license-must-be-verified-at-pin",
+      "notes": "Extended CoreUI validation and downstream Game confirmation exist, but the exact Ollama upstream version was not recorded. This observation is intentionally ineligible as a latest-known-good production pin."
+    },
+    {
+      "id": "llama-cpp-native-planned",
+      "project": "llama.cpp / ggml",
+      "backend_kind": "llama.cpp",
+      "source_url": "https://github.com/ggml-org/llama.cpp",
+      "status": "planned",
+      "enabled_capabilities": [],
+      "disabled_capabilities": [],
+      "hardware_classes": ["linux-cpu", "linux-hybrid"],
+      "license_ref": "upstream-license-must-be-verified-at-pin",
+      "notes": "First native portable backend priority. No upstream tag or commit is promoted until the Runtime conformance suite passes."
+    }
+  ]
+}

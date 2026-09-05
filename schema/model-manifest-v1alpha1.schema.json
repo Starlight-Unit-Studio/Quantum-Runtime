@@ -4,44 +4,14 @@
   "title": "Quantum Runtime Model Manifest v1alpha1",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "id",
-    "display_name",
-    "source",
-    "backend",
-    "artifacts",
-    "model",
-    "capabilities",
-    "compatibility",
-    "state",
-    "provenance"
-  ],
+  "required": ["schema_version", "id", "display_name", "source", "backend", "artifacts", "model", "capabilities", "compatibility", "state", "provenance"],
   "properties": {
-    "schema_version": {
-      "const": "quantum.runtime/model-manifest/v1alpha1"
-    },
-    "id": {
-      "type": "string",
-      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
-    },
-    "display_name": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 160
-    },
-    "aliases": {
-      "type": "array",
-      "uniqueItems": true,
-      "items": {
-        "type": "string",
-        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}$"
-      }
-    },
+    "schema_version": {"const": "quantum.runtime/model-manifest/v1alpha1"},
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"},
+    "display_name": {"type": "string", "minLength": 1, "maxLength": 160},
+    "aliases": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}$"}},
     "source": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["provider", "reference", "revision"],
+      "type": "object", "additionalProperties": false, "required": ["provider", "reference", "revision"],
       "properties": {
         "provider": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,79}$"},
         "reference": {"type": "string", "minLength": 1, "maxLength": 300},
@@ -49,73 +19,78 @@
       }
     },
     "backend": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["type"],
-      "properties": {
-        "type": {
-          "enum": ["ollama-adapter", "gguf", "safetensors", "external"]
-        }
-      }
+      "type": "object", "additionalProperties": false, "required": ["type"],
+      "properties": {"type": {"enum": ["ollama-adapter", "llama.cpp", "mlx", "vllm", "gguf", "safetensors", "external"]}}
     },
     "artifacts": {
-      "type": "array",
-      "minItems": 1,
+      "type": "array", "minItems": 1,
       "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["uri"],
+        "type": "object", "additionalProperties": false, "required": ["uri"],
         "properties": {
           "uri": {"type": "string", "minLength": 3},
-          "sha256": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"}
+          "sha256": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+          "backend": {"enum": ["ollama-adapter", "llama.cpp", "mlx", "vllm", "gguf", "safetensors", "external"]},
+          "format": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,79}$"},
+          "role": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,79}$"}
         }
       }
     },
     "model": {
-      "type": "object",
-      "additionalProperties": false,
+      "type": "object", "additionalProperties": false,
       "required": ["architecture", "parameter_class", "quantization", "context_window"],
       "properties": {
         "architecture": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,79}$"},
+        "architecture_class": {"enum": ["dense", "moe", "unknown"]},
         "parameter_class": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,79}$"},
+        "total_parameters_b": {"type": "number", "minimum": 0},
+        "active_parameters_b": {"type": "number", "minimum": 0},
+        "experts": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "total": {"type": "integer", "minimum": 1},
+            "active": {"type": "integer", "minimum": 1},
+            "shared": {"type": "integer", "minimum": 0}
+          }
+        },
         "quantization": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,79}$"},
-        "context_window": {"type": "integer", "minimum": 1, "maximum": 10000000}
+        "context_window": {"type": "integer", "minimum": 1, "maximum": 10000000},
+        "context_policy": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "native_max": {"type": "integer", "minimum": 0},
+            "backend_managed": {"type": "boolean"},
+            "override_supported": {"type": "boolean"},
+            "override_verified": {"type": "boolean"}
+          }
+        }
       }
     },
     "capabilities": {
-      "type": "object",
-      "additionalProperties": false,
+      "type": "object", "additionalProperties": false,
       "required": ["text", "vision", "audio", "embeddings", "tools", "thinking"],
       "properties": {
-        "text": {"type": "boolean"},
-        "vision": {"type": "boolean"},
-        "audio": {"type": "boolean"},
-        "embeddings": {"type": "boolean"},
-        "tools": {"type": "boolean"},
-        "thinking": {"type": "boolean"}
+        "text": {"type": "boolean"}, "vision": {"type": "boolean"}, "audio": {"type": "boolean"},
+        "embeddings": {"type": "boolean"}, "reranking": {"type": "boolean"}, "tools": {"type": "boolean"},
+        "tool_streaming": {"type": "boolean"}, "thinking": {"type": "boolean"},
+        "reasoning_control": {"type": "boolean"}, "structured_output": {"type": "boolean"}
       },
       "anyOf": [
-        {"properties": {"text": {"const": true}}},
-        {"properties": {"vision": {"const": true}}},
-        {"properties": {"audio": {"const": true}}},
-        {"properties": {"embeddings": {"const": true}}},
-        {"properties": {"tools": {"const": true}}},
-        {"properties": {"thinking": {"const": true}}}
+        {"properties": {"text": {"const": true}}}, {"properties": {"vision": {"const": true}}},
+        {"properties": {"audio": {"const": true}}}, {"properties": {"embeddings": {"const": true}}},
+        {"properties": {"reranking": {"const": true}}}, {"properties": {"tools": {"const": true}}},
+        {"properties": {"thinking": {"const": true}}}, {"properties": {"reasoning_control": {"const": true}}},
+        {"properties": {"structured_output": {"const": true}}}
       ]
     },
     "compatibility": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["min_runtime_version"],
+      "type": "object", "additionalProperties": false, "required": ["min_runtime_version"],
       "properties": {
         "min_runtime_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"},
         "max_runtime_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"}
       }
     },
     "persona": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["package", "version"],
+      "type": "object", "additionalProperties": false, "required": ["package", "version"],
       "properties": {
         "package": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"},
         "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"},
@@ -123,26 +98,16 @@
       }
     },
     "state": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["install", "verification", "lifecycle"],
+      "type": "object", "additionalProperties": false, "required": ["install", "verification", "lifecycle"],
       "properties": {
         "install": {"enum": ["external", "available", "installed"]},
         "verification": {"enum": ["unverified", "verified", "failed"]},
         "lifecycle": {"enum": ["active", "deprecated", "blocked"]}
       },
-      "not": {
-        "properties": {
-          "verification": {"const": "failed"},
-          "lifecycle": {"const": "active"}
-        },
-        "required": ["verification", "lifecycle"]
-      }
+      "not": {"properties": {"verification": {"const": "failed"}, "lifecycle": {"const": "active"}}, "required": ["verification", "lifecycle"]}
     },
     "provenance": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["publisher"],
+      "type": "object", "additionalProperties": false, "required": ["publisher"],
       "properties": {
         "publisher": {"type": "string", "minLength": 1, "maxLength": 200},
         "source_url": {"type": "string", "format": "uri"},
@@ -151,28 +116,8 @@
       }
     }
   },
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "state": {
-            "properties": {"verification": {"const": "verified"}},
-            "required": ["verification"]
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "artifacts": {
-            "items": {"required": ["uri", "sha256"]}
-          },
-          "source": {
-            "properties": {
-              "revision": {"not": {"const": "unresolved"}}
-            }
-          }
-        }
-      }
-    }
-  ]
+  "allOf": [{
+    "if": {"properties": {"state": {"properties": {"verification": {"const": "verified"}}, "required": ["verification"]}}},
+    "then": {"properties": {"artifacts": {"items": {"required": ["uri", "sha256"]}}, "source": {"properties": {"revision": {"not": {"const": "unresolved"}}}}}}
+  }]
 }

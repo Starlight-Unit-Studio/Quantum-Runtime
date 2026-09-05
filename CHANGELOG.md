@@ -1,5 +1,17 @@
 # Changelog
 
+
+## 0.3.0-alpha.1 - 2026-09-05
+
+- Added `quantum.runtime/backend/v1alpha1` with explicit supported, unsupported, conditional and unknown capability states instead of optimistic booleans.
+- Added deterministic backend routing that resolves aliases to one canonical model identity, evaluates model + backend capabilities, selects an artifact/backend pair and fails closed when a requested capability is unknown or unsupported.
+- Extended model-manifest v1alpha1 compatibly with artifact-specific backend/format/role metadata, dense/MoE architecture class, optional parameter/expert metadata, context-policy state, reranking/tool-streaming/reasoning-control/structured-output capability flags.
+- Added a Gemma 4 26B A4B MoE reference profile without making Gemma the Runtime default.
+- Added a machine-readable Gemma 4 + Ollama Turin minimal policy. `temperature=1.0`, `top_k=64` and `top_p=0.95` are known-good; context/predict/thread/repeat/seed/stop controls remain blocked-unverified by default. The policy explicitly does not claim `num_ctx` was the sole cause of the observed speedup.
+- Added a machine-readable upstream ledger. The existing Ollama validation is intentionally `observed-unpinned` because the exact tested upstream version was not recorded, so it cannot silently become a latest-known-good production pin. llama.cpp/ggml is recorded as the first planned native portable backend.
+- Added `/v1/backends`, `/v1/route`, `/v1/model-policies` and `/v1/upstreams` while preserving existing Ollama compatibility forwarding.
+- Kept CPU-first placement visible in backend capabilities and did not introduce generic shell execution, TCI privilege access or application memory/state into the Runtime layer.
+
 ## 0.2.0-alpha.2
 
 First non-destructive Linux service packaging and optional Ember CoreUI adoption profile.

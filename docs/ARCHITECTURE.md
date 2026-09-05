@@ -122,3 +122,11 @@ The current adapter requires no model store of its own. A later managed installa
 ```
 
 Model files must never be mixed with application chats, memories or secrets.
+
+## Runtime 0.3 backend capability layer
+
+Quantum Runtime 0.3 introduces `quantum.runtime/backend/v1alpha1` between the canonical model registry and concrete execution engines. Backend capabilities use four explicit states: `supported`, `unsupported`, `conditional`, and `unknown`. `conditional` means the engine can provide the feature only when the selected model/artifact satisfies the corresponding requirement; `unknown` never satisfies a route request.
+
+The first configured backend remains the external Ollama adoption adapter. The router is intentionally separate from transport forwarding so future llama.cpp, MLX and vLLM adapters can be added without changing canonical model identity or client APIs. A model may now carry artifact-specific backend metadata. Routing evaluates canonical model metadata, artifact compatibility, requested capabilities and backend state, then returns a deterministic plan. It never silently substitutes a different canonical model.
+
+CPU execution is a first-class placement capability. GPU and hybrid placement remain optional/conditional and are not assumed to be the default. The 0.3.0-alpha.1 slice does not yet execute llama.cpp natively; it establishes the interface and routing boundary required for that next step.

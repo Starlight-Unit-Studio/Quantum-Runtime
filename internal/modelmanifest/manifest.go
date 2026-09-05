@@ -47,24 +47,49 @@ type Backend struct {
 }
 
 type Artifact struct {
-	URI    string `json:"uri"`
-	SHA256 string `json:"sha256,omitempty"`
+	URI     string `json:"uri"`
+	SHA256  string `json:"sha256,omitempty"`
+	Backend string `json:"backend,omitempty"`
+	Format  string `json:"format,omitempty"`
+	Role    string `json:"role,omitempty"`
+}
+
+type ExpertTopology struct {
+	Total  int `json:"total,omitempty"`
+	Active int `json:"active,omitempty"`
+	Shared int `json:"shared,omitempty"`
+}
+
+type ModelContextPolicy struct {
+	NativeMax         int  `json:"native_max,omitempty"`
+	BackendManaged    bool `json:"backend_managed,omitempty"`
+	OverrideSupported bool `json:"override_supported,omitempty"`
+	OverrideVerified  bool `json:"override_verified,omitempty"`
 }
 
 type Model struct {
-	Architecture   string `json:"architecture"`
-	ParameterClass string `json:"parameter_class"`
-	Quantization   string `json:"quantization"`
-	ContextWindow  int    `json:"context_window"`
+	Architecture      string             `json:"architecture"`
+	ArchitectureClass string             `json:"architecture_class,omitempty"`
+	ParameterClass    string             `json:"parameter_class"`
+	TotalParametersB  float64            `json:"total_parameters_b,omitempty"`
+	ActiveParametersB float64            `json:"active_parameters_b,omitempty"`
+	Experts           *ExpertTopology    `json:"experts,omitempty"`
+	Quantization      string             `json:"quantization"`
+	ContextWindow     int                `json:"context_window"`
+	ContextPolicy     ModelContextPolicy `json:"context_policy,omitempty"`
 }
 
 type Capabilities struct {
-	Text       bool `json:"text"`
-	Vision     bool `json:"vision"`
-	Audio      bool `json:"audio"`
-	Embeddings bool `json:"embeddings"`
-	Tools      bool `json:"tools"`
-	Thinking   bool `json:"thinking"`
+	Text             bool `json:"text"`
+	Vision           bool `json:"vision"`
+	Audio            bool `json:"audio"`
+	Embeddings       bool `json:"embeddings"`
+	Reranking        bool `json:"reranking,omitempty"`
+	Tools            bool `json:"tools"`
+	ToolStreaming    bool `json:"tool_streaming,omitempty"`
+	Thinking         bool `json:"thinking"`
+	ReasoningControl bool `json:"reasoning_control,omitempty"`
+	StructuredOutput bool `json:"structured_output,omitempty"`
 }
 
 type Compatibility struct {
@@ -116,8 +141,11 @@ func (m Manifest) Validate() error {
 	if err := validateModel(m.Model); err != nil {
 		return err
 	}
-	if !m.Capabilities.Text && !m.Capabilities.Vision && !m.Capabilities.Audio && !m.Capabilities.Embeddings && !m.Capabilities.Tools && !m.Capabilities.Thinking {
+	if !m.Capabilities.Text && !m.Capabilities.Vision && !m.Capabilities.Audio && !m.Capabilities.Embeddings && !m.Capabilities.Reranking && !m.Capabilities.Tools && !m.Capabilities.Thinking && !m.Capabilities.ReasoningControl && !m.Capabilities.StructuredOutput {
 		return fmt.Errorf("at least one capability must be declared")
+	}
+	if m.Capabilities.ToolStreaming && !m.Capabilities.Tools {
+		return fmt.Errorf("tool_streaming requires tools=true")
 	}
 	if err := validateCompatibility(m.Compatibility); err != nil {
 		return err
@@ -168,7 +196,7 @@ func validateSource(source Source, verification string) error {
 
 func validateBackend(backend Backend) error {
 	switch backend.Type {
-	case "ollama-adapter", "gguf", "safetensors", "external":
+	case "ollama-adapter", "llama.cpp", "mlx", "vllm", "gguf", "safetensors", "external":
 		return nil
 	default:
 		return fmt.Errorf("backend.type %q is not supported by schema v1alpha1", backend.Type)
@@ -185,15 +213,27 @@ func validateArtifacts(artifacts []Artifact, verification string) error {
 		if err != nil || parsed.Scheme == "" || strings.ContainsAny(artifact.URI, "\r\n\t ") {
 			return fmt.Errorf("artifact uri %q is invalid", artifact.URI)
 		}
-		if _, exists := seen[artifact.URI]; exists {
-			return fmt.Errorf("artifact uri %q is duplicated", artifact.URI)
+		key := artifact.Backend + "\x00" + artifact.URI
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("artifact uri %q is duplicated for backend %q", artifact.URI, artifact.Backend)
 		}
-		seen[artifact.URI] = struct{}{}
+		seen[key] = struct{}{}
 		if artifact.SHA256 != "" && !digestPattern.MatchString(artifact.SHA256) {
 			return fmt.Errorf("artifact %q has an invalid sha256 digest", artifact.URI)
 		}
 		if verification == "verified" && artifact.SHA256 == "" {
 			return fmt.Errorf("verified manifests require a sha256 digest for artifact %q", artifact.URI)
+		}
+		if artifact.Backend != "" {
+			if err := validateBackend(Backend{Type: artifact.Backend}); err != nil {
+				return fmt.Errorf("artifact %q: %w", artifact.URI, err)
+			}
+		}
+		if artifact.Format != "" && !labelPattern.MatchString(artifact.Format) {
+			return fmt.Errorf("artifact %q format %q is invalid", artifact.URI, artifact.Format)
+		}
+		if artifact.Role != "" && !labelPattern.MatchString(artifact.Role) {
+			return fmt.Errorf("artifact %q role %q is invalid", artifact.URI, artifact.Role)
 		}
 	}
 	return nil
@@ -203,6 +243,9 @@ func validateModel(model Model) error {
 	if !labelPattern.MatchString(model.Architecture) {
 		return fmt.Errorf("model.architecture %q is invalid", model.Architecture)
 	}
+	if model.ArchitectureClass != "" && !contains([]string{"dense", "moe", "unknown"}, model.ArchitectureClass) {
+		return fmt.Errorf("model.architecture_class %q is invalid", model.ArchitectureClass)
+	}
 	if !labelPattern.MatchString(model.ParameterClass) {
 		return fmt.Errorf("model.parameter_class %q is invalid", model.ParameterClass)
 	}
@@ -211,6 +254,26 @@ func validateModel(model Model) error {
 	}
 	if model.ContextWindow < 1 || model.ContextWindow > 10_000_000 {
 		return fmt.Errorf("model.context_window must be between 1 and 10000000")
+	}
+	if model.TotalParametersB < 0 || model.ActiveParametersB < 0 {
+		return fmt.Errorf("model parameter counts must not be negative")
+	}
+	if model.TotalParametersB > 0 && model.ActiveParametersB > model.TotalParametersB {
+		return fmt.Errorf("model.active_parameters_b must not exceed total_parameters_b")
+	}
+	if model.Experts != nil {
+		if model.ArchitectureClass != "moe" {
+			return fmt.Errorf("model.experts requires architecture_class=moe")
+		}
+		if model.Experts.Total < 1 || model.Experts.Active < 1 || model.Experts.Active > model.Experts.Total || model.Experts.Shared < 0 || model.Experts.Shared > model.Experts.Total {
+			return fmt.Errorf("model.experts topology is invalid")
+		}
+	}
+	if model.ContextPolicy.NativeMax < 0 {
+		return fmt.Errorf("model.context_policy.native_max must not be negative")
+	}
+	if model.ContextPolicy.OverrideVerified && !model.ContextPolicy.OverrideSupported {
+		return fmt.Errorf("model context override cannot be verified when override_supported=false")
 	}
 	return nil
 }
@@ -357,15 +420,15 @@ func compareVersion(left, right semanticVersion) int {
 		limit = len(right.prerelease)
 	}
 	for i := 0; i < limit; i++ {
-		l, r := left.prerelease[i], right.prerelease[i]
-		if l == r {
+		l, rr := left.prerelease[i], right.prerelease[i]
+		if l == rr {
 			continue
 		}
-		ln, rn := isNumeric(l), isNumeric(r)
+		ln, rn := isNumeric(l), isNumeric(rr)
 		switch {
 		case ln && rn:
 			li, _ := strconv.ParseUint(l, 10, 64)
-			ri, _ := strconv.ParseUint(r, 10, 64)
+			ri, _ := strconv.ParseUint(rr, 10, 64)
 			if li < ri {
 				return -1
 			}
@@ -374,7 +437,7 @@ func compareVersion(left, right semanticVersion) int {
 			return -1
 		case rn:
 			return 1
-		case l < r:
+		case l < rr:
 			return -1
 		default:
 			return 1
@@ -402,7 +465,7 @@ func isNumeric(value string) bool {
 }
 
 func CapabilityNames(capabilities Capabilities) []string {
-	values := make([]string, 0, 6)
+	values := make([]string, 0, 10)
 	if capabilities.Text {
 		values = append(values, "text")
 	}
@@ -415,11 +478,23 @@ func CapabilityNames(capabilities Capabilities) []string {
 	if capabilities.Embeddings {
 		values = append(values, "embeddings")
 	}
+	if capabilities.Reranking {
+		values = append(values, "reranking")
+	}
 	if capabilities.Tools {
 		values = append(values, "tools")
 	}
+	if capabilities.ToolStreaming {
+		values = append(values, "tool-streaming")
+	}
 	if capabilities.Thinking {
 		values = append(values, "thinking")
+	}
+	if capabilities.ReasoningControl {
+		values = append(values, "reasoning-control")
+	}
+	if capabilities.StructuredOutput {
+		values = append(values, "structured-output")
 	}
 	sort.Strings(values)
 	return values

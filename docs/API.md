@@ -186,3 +186,19 @@ Upstream Ollama responses are preserved for compatibility after a request has be
 `v1alpha1` is intentionally not a stable 1.0 contract. Changes must be documented in `CHANGELOG.md`.
 
 CoreUI migration should initially continue to use `/api/chat`. A later native chat contract and OpenAI-compatible adapter will be specified independently rather than guessed from the proxy implementation.
+
+## Runtime 0.3 backend and routing endpoints
+
+`GET /v1/backends` returns configured backend descriptors using `quantum.runtime/backend/v1alpha1`.
+
+`POST /v1/route` accepts a canonical model ID or alias plus optional required capability names. Example:
+
+```json
+{"model":"ember-coreui:latest","capabilities":["inference.text","multimodal.vision"]}
+```
+
+The response contains `requested_identifier`, `canonical_model_id`, selected backend/artifact, required capability set, backend context policy and matching model-policy IDs. Unknown capabilities fail closed with `422 no_compatible_backend`; missing models return `404 model_not_found`.
+
+`GET /v1/model-policies` exposes machine-readable backend/model validation policies. The initial Gemma 4 + Ollama Turin policy records the minimal known-good sampling profile and classifies additional tuning knobs as blocked-unverified until isolated A/B validation.
+
+`GET /v1/upstreams` exposes the tested-upstream ledger plus the subset currently eligible as `latest_known_good`. An `observed-unpinned` entry is informative only and cannot be promoted automatically.

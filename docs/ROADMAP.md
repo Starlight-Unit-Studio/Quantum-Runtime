@@ -92,3 +92,9 @@ The initial native backend may reuse a mature low-level inference engine. Quantu
 - compatibility matrix consumed by Quantum CoreOS
 
 Quantum CoreOS integration begins only after Runtime and Control exist as independently testable projects.
+
+## 0.3 implementation status
+
+`0.3.0-alpha.1` lands the backend interface, deterministic capability states, route planner, model/backend policy registry and upstream ledger. The Ollama adoption backend remains available and CoreUI/Game can continue using the existing compatibility endpoint.
+
+Next 0.3 slices should implement the first native portable llama.cpp/ggml adapter, host hardware discovery/calibration, CPU-first/tiered placement policy, actual backend selection for multiple artifacts of one canonical model, and the conformance matrix from issue #8. MLX and vLLM follow after the portable local path is stable.

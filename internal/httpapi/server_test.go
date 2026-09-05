@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/backendcontract"
 	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/config"
 	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/ollama"
 )
@@ -190,6 +191,69 @@ func TestUnsupportedCompatibilityRouteIsNotProxied(t *testing.T) {
 	}
 }
 
+func TestBackendContractEndpoint(t *testing.T) {
+	upstreamServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/version" {
+			_, _ = io.WriteString(w, `{"version":"test"}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{}`)
+	}))
+	defer upstreamServer.Close()
+	base, _ := url.Parse(upstreamServer.URL)
+	server := New(testConfig(t), ollama.NewProxyWithClient(base, "test", upstreamServer.Client()), testBuild(), discardLogger())
+	request := httptest.NewRequest(http.MethodGet, "/v1/backends", nil)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected status: %d body=%s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), backendcontract.ContractVersion) || !strings.Contains(response.Body.String(), "ollama-adapter") {
+		t.Fatalf("backend contract missing: %s", response.Body.String())
+	}
+}
+
+func TestRouteEndpointPreservesCanonicalModelIdentity(t *testing.T) {
+	upstreamServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = io.WriteString(w, `{}`) }))
+	defer upstreamServer.Close()
+	base, _ := url.Parse(upstreamServer.URL)
+	server := New(testConfig(t), ollama.NewProxyWithClient(base, "test", upstreamServer.Client()), testBuild(), discardLogger())
+	request := httptest.NewRequest(http.MethodPost, "/v1/route", strings.NewReader(`{"model":"ember-coreui:latest","capabilities":["inference.text","multimodal.vision"]}`))
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected status: %d body=%s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"canonical_model_id":"ember-coreui"`) {
+		t.Fatalf("canonical identity missing: %s", response.Body.String())
+	}
+}
+
+func TestRouteEndpointFailsClosedOnUnknownCapability(t *testing.T) {
+	upstreamServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = io.WriteString(w, `{}`) }))
+	defer upstreamServer.Close()
+	base, _ := url.Parse(upstreamServer.URL)
+	server := New(testConfig(t), ollama.NewProxyWithClient(base, "test", upstreamServer.Client()), testBuild(), discardLogger())
+	request := httptest.NewRequest(http.MethodPost, "/v1/route", strings.NewReader(`{"model":"ember-coreui","capabilities":["future.magic"]}`))
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("unexpected status: %d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestPolicyAndUpstreamEndpoints(t *testing.T) {
+	server := New(testConfig(t), &fakeUpstream{}, testBuild(), discardLogger())
+	for _, path := range []string{"/v1/model-policies", "/v1/upstreams"} {
+		request := httptest.NewRequest(http.MethodGet, path, nil)
+		response := httptest.NewRecorder()
+		server.Handler().ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("%s unexpected status: %d body=%s", path, response.Code, response.Body.String())
+		}
+	}
+}
+
 func testConfig(t *testing.T) config.Config {
 	t.Helper()
 	upstream, err := url.Parse("http://127.0.0.1:11434")
@@ -216,6 +280,33 @@ func discardLogger() *slog.Logger {
 type fakeUpstream struct {
 	readyErr error
 	calls    int
+}
+
+func (f *fakeUpstream) Descriptor() backendcontract.Descriptor {
+	return backendcontract.Descriptor{
+		ContractVersion: backendcontract.ContractVersion,
+		ID:              "test-backend",
+		Kind:            "external",
+		AdapterVersion:  "test",
+		ExecutionMode:   "external",
+		State:           "unknown",
+		Capabilities: backendcontract.Capabilities{
+			Text:             backendcontract.SupportSupported,
+			Architecture:     backendcontract.ArchitectureCapabilities{Dense: backendcontract.SupportConditional, MoE: backendcontract.SupportConditional},
+			MoE:              backendcontract.MoECapabilities{ExpertOffload: backendcontract.SupportUnknown, ExpertParallel: backendcontract.SupportUnknown},
+			Speculative:      backendcontract.SpeculativeCapabilities{MTP: backendcontract.SupportUnknown, DraftModel: backendcontract.SupportUnknown},
+			Cache:            backendcontract.CacheCapabilities{KVOffload: backendcontract.SupportUnknown, PromptCache: backendcontract.SupportUnknown},
+			Multimodal:       backendcontract.MultimodalCapabilities{Vision: backendcontract.SupportUnknown, Audio: backendcontract.SupportUnknown},
+			Embeddings:       backendcontract.SupportUnknown,
+			Reranking:        backendcontract.SupportUnknown,
+			ReasoningControl: backendcontract.SupportUnknown,
+			Tools:            backendcontract.ToolCapabilities{Calling: backendcontract.SupportUnknown, Streaming: backendcontract.SupportUnknown},
+			StructuredOutput: backendcontract.SupportUnknown,
+			Streaming:        backendcontract.StreamingCapabilities{Content: backendcontract.SupportSupported, Reasoning: backendcontract.SupportUnknown, ToolArguments: backendcontract.SupportUnknown},
+			Placement:        backendcontract.PlacementCapabilities{CPU: backendcontract.SupportConditional, GPU: backendcontract.SupportUnknown, Hybrid: backendcontract.SupportUnknown},
+			Context:          backendcontract.ContextCapabilities{BackendManaged: true, OverrideSupported: backendcontract.SupportUnknown},
+		},
+	}
 }
 
 func (f *fakeUpstream) Ready(context.Context) error {

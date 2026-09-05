@@ -1,0 +1,35 @@
+{
+  "schema_version": "quantum.runtime/model-policy/v1alpha1",
+  "id": "gemma4-ollama-turin-minimal",
+  "model_family": "gemma4",
+  "variants": ["e2b", "e4b", "26b-a4b", "profile_dependent"],
+  "backend_kind": "ollama-adapter",
+  "hardware_class": "amd-epyc-turin-cpu",
+  "renderer": "gemma4",
+  "parser": "gemma4",
+  "context": {
+    "backend_managed": true,
+    "override_supported": true,
+    "override_verified": false
+  },
+  "parameters": [
+    {"name": "temperature", "class": "known-good", "value": 1.0},
+    {"name": "top_k", "class": "known-good", "value": 64},
+    {"name": "top_p", "class": "known-good", "value": 0.95},
+    {"name": "num_ctx", "class": "blocked-unverified"},
+    {"name": "num_predict", "class": "blocked-unverified"},
+    {"name": "num_thread", "class": "blocked-unverified"},
+    {"name": "repeat_penalty", "class": "blocked-unverified"},
+    {"name": "repeat_last_n", "class": "blocked-unverified"},
+    {"name": "seed", "class": "blocked-unverified"},
+    {"name": "stop", "class": "blocked-unverified"}
+  ],
+  "validation": {
+    "observed_date": "2026-09-04",
+    "sources": [
+      "ember-coreui-extended-manual-validation",
+      "game-ember-26b-downstream-confirmation"
+    ],
+    "notes": "The observed throughput gain belongs to the complete minimal profile. num_ctx is not recorded as the sole cause; each removed generation/context/predict control remains blocked-unverified until isolated controlled A/B validation."
+  }
+}
