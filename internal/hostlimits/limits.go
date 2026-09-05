@@ -14,16 +14,16 @@ import (
 const SchemaVersion = "quantum.runtime/host-limits/v1alpha1"
 
 type Limits struct {
-	SchemaVersion          string         `json:"schema_version"`
-	CollectedAt            time.Time      `json:"collected_at"`
-	EffectiveLogicalCPUs   int            `json:"effective_logical_cpus"`
-	AffinityCPUList        string         `json:"affinity_cpu_list,omitempty"`
-	AffinityLogicalCPUs    int            `json:"affinity_logical_cpus,omitempty"`
-	CgroupCPUSet           string         `json:"cgroup_cpuset,omitempty"`
-	CgroupCPUSetLogicalCPUs int           `json:"cgroup_cpuset_logical_cpus,omitempty"`
-	CPUQuotaCores          float64        `json:"cpu_quota_cores,omitempty"`
-	Virtualization         Virtualization `json:"virtualization"`
-	Warnings               []string       `json:"warnings,omitempty"`
+	SchemaVersion           string         `json:"schema_version"`
+	CollectedAt             time.Time      `json:"collected_at"`
+	EffectiveLogicalCPUs    int            `json:"effective_logical_cpus"`
+	AffinityCPUList         string         `json:"affinity_cpu_list,omitempty"`
+	AffinityLogicalCPUs     int            `json:"affinity_logical_cpus,omitempty"`
+	CgroupCPUSet            string         `json:"cgroup_cpuset,omitempty"`
+	CgroupCPUSetLogicalCPUs int            `json:"cgroup_cpuset_logical_cpus,omitempty"`
+	CPUQuotaCores           float64        `json:"cpu_quota_cores,omitempty"`
+	Virtualization          Virtualization `json:"virtualization"`
+	Warnings                []string       `json:"warnings,omitempty"`
 }
 
 type Virtualization struct {
