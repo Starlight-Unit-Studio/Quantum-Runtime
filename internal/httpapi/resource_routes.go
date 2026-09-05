@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/calibration"
+	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/hostlimits"
 	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/hostprofile"
 	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/placement"
 	"github.com/Starlight-Unit-Studio/Quantum-Runtime/internal/resourcecontrol"
@@ -49,12 +50,20 @@ func (s *Server) handleHostProfile(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, "invalid_host_profile", "The discovered host profile is invalid.")
 		return
 	}
+	limits := hostlimits.Discover()
+	if err := limits.Validate(); err != nil {
+		s.logger.Error("invalid host limits", "error", err)
+		s.writeError(w, http.StatusInternalServerError, "invalid_host_limits", "The discovered process/guest CPU limits are invalid.")
+		return
+	}
 	last, calibrated := runtimeResources.LastCalibration()
 	s.writeJSON(w, http.StatusOK, map[string]any{
 		"api_version":        "v1alpha1",
 		"host_schema":        hostprofile.SchemaVersion,
+		"limits_schema":      hostlimits.SchemaVersion,
 		"calibration_schema": calibration.SchemaVersion,
 		"host":               profile,
+		"limits":             limits,
 		"calibrated":         calibrated,
 		"last_calibration":   calibrationOrNil(last, calibrated),
 	})
@@ -77,9 +86,11 @@ func (s *Server) handleHostCalibration(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, "invalid_host_profile", "The discovered host profile is invalid.")
 		return
 	}
+	limits := hostlimits.Discover()
 	s.writeJSON(w, http.StatusOK, map[string]any{
 		"api_version": "v1alpha1",
 		"host":        host,
+		"limits":      limits,
 		"calibration": result,
 	})
 }
@@ -115,10 +126,12 @@ func (s *Server) handlePlacement(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, "invalid_host_profile", "The discovered host profile is invalid.")
 		return
 	}
+	limits := hostlimits.Discover()
 	s.writeJSON(w, http.StatusOK, map[string]any{
 		"api_version":      "v1alpha1",
 		"placement_schema": placement.SchemaVersion,
 		"host":             host,
+		"limits":           limits,
 		"calibration":      last,
 		"plan":             plan,
 	})
