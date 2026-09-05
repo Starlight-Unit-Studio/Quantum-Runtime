@@ -11,7 +11,7 @@ import (
 var builtinModelRegistry = modelregistry.MustBuiltin()
 
 func (s *Server) withRegistryRoutes(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	registry := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/v1/models":
 			s.handleModelList(w, r)
@@ -23,6 +23,7 @@ func (s *Server) withRegistryRoutes(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		}
 	})
+	return s.withResourceRoutes(registry)
 }
 
 func (s *Server) handleModelList(w http.ResponseWriter, r *http.Request) {
