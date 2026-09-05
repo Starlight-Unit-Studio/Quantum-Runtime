@@ -186,9 +186,9 @@ func discoverVirtualization() Virtualization {
 		if err != nil {
 			continue
 		}
-		value := strings.ToLower(strings.TrimSpace(string(data)))
+		value := strings.TrimSpace(string(data))
 		if kind := virtualizationKind(value); kind != "" {
-			return Virtualization{Guest: true, Kind: kind, Evidence: item.label + ": " + strings.TrimSpace(string(data))}
+			return Virtualization{Guest: true, Kind: kind, Evidence: item.label + ": " + value}
 		}
 	}
 
@@ -199,6 +199,7 @@ func discoverVirtualization() Virtualization {
 }
 
 func virtualizationKind(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
 	switch {
 	case strings.Contains(value, "kvm"), strings.Contains(value, "qemu"):
 		return "kvm"
